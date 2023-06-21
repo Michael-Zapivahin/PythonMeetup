@@ -3,7 +3,7 @@ from django.db import models
 
 class Guest(models.Model):
     name = models.CharField(max_length=200, verbose_name='Имя')
-    phone = models.CharField(max_length=12, verbose_name='Телефон')
+    phone = models.CharField(max_length=12, verbose_name='Телефон', blank=True)
     friends = models.ManyToManyField('self', related_name='friends', verbose_name='Friends')
     kind_activity = models.CharField(max_length=200, verbose_name='Вид деятельности', blank=True)
     open_for_contact = models.BooleanField('Открыт для контактов', default=False)
