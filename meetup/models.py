@@ -3,14 +3,22 @@ from django.db import models
 
 class Guest(models.Model):
     name = models.CharField(max_length=200, verbose_name='Имя')
-    phone = models.CharField(max_length=12, verbose_name='Телефон', blank=True)
-    friends = models.ManyToManyField('self', related_name='friends', verbose_name='Friends')
+    phone = models.CharField(max_length=12, verbose_name='Телефон', blank=True, null=True)
+    friends = models.ManyToManyField('self', through='friend')
     kind_activity = models.CharField(max_length=200, verbose_name='Вид деятельности', blank=True)
     open_for_contact = models.BooleanField('Открыт для контактов', default=False)
     projects = models.TextField('Проекты', blank=True)
 
     def __str__(self):
         return f'{self.name}, phone: {self.phone}'
+
+
+class Friend(models.Model):
+    guest = models.ForeignKey(Guest, on_delete=models.CASCADE, related_name='me')
+    friend = models.ForeignKey(Guest, on_delete=models.CASCADE, related_name='friend')
+
+    def __str__(self):
+        return f'{self.friend}'
 
 
 class Event(models.Model):
