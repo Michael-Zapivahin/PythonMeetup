@@ -8,6 +8,7 @@ from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton
 from telebot.handler_backends import State, StatesGroup
 from telebot.storage import StateMemoryStorage
 
+import meetup.db_operations as db
 
 env = Env()
 env.read_env()
@@ -63,10 +64,13 @@ def admin_root(call):
     chat_id = call.from_user.id
     
     if chat_id in admin_ids:
-        events = [] # список  мероприятий
+        events = db.get_all_events()
         event_keyboard = InlineKeyboardMarkup(row_width=1)
         for event in events:
-            event_keyboard.add(InlineKeyboardButton(event.name, callback_data=f'event_{event.id}'))
+            text = f'{event.date:%d-%m-%Y} "{event.topic}"'
+            event_keyboard.add(
+                InlineKeyboardButton(text, callback_data=f'event_{event.id}')
+            )
         
         event_keyboard.add(InlineKeyboardButton('Создать новое мероприятие', callback_data='new_event'))
         
@@ -140,10 +144,11 @@ def admin_create_new_event(call):
     chat_id = call.from_user.id
     with bot.retrieve_data(chat_id, chat_id) as data:
         # Запись мероприятия в базу данных
-        # db.create_new_event(topic=data['name'], date=data['date'])
-        print(data)
+        db.create_new_event(topic=data['name'], date=data['date'])
         
     bot.delete_state(chat_id, chat_id)
+    
+    # Переход на меню выбора мероприятий
     class AdminRoot(object):
         def __init__(self):
             self.message = call.message  # либо call.message
