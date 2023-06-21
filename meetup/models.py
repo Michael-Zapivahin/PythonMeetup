@@ -39,9 +39,9 @@ class Schedule(models.Model):
     topic = models.CharField(max_length=200, verbose_name='Тема')
     date_start = models.DateTimeField('Дата')
     date_end = models.DateTimeField('Дата')
-    speaker = models.ForeignKey(Guest, verbose_name='Спикер', on_delete=models.PROTECT)
+    speaker = models.ForeignKey(Guest, verbose_name='Спикер', on_delete=models.PROTECT, related_name='schedules')
     active = models.BooleanField(default=False)
-    event = models.ForeignKey(Event, verbose_name='Событие', on_delete=models.CASCADE)
+    event = models.ForeignKey(Event, verbose_name='Событие', on_delete=models.CASCADE, related_name='schedules')
 
     def __str__(self):
         return self.topic
@@ -49,8 +49,8 @@ class Schedule(models.Model):
 
 class Question(models.Model):
     question = models.TextField('Вопрос')
-    schedule = models.ForeignKey(Schedule, verbose_name='Расписание', on_delete=models.SET_NULL, null=True)
-    guest = models.ForeignKey(Guest, on_delete=models.CASCADE, null=True)
+    schedule = models.ForeignKey(Schedule, verbose_name='Расписание', on_delete=models.SET_NULL, null=True, related_name='questions')
+    guest = models.ForeignKey(Guest, on_delete=models.CASCADE, null=True, related_name='questions')
 
     def __str__(self):
         return self.question[100]
@@ -58,8 +58,8 @@ class Question(models.Model):
 
 class Donation(models.Model):
     amount = models.IntegerField('Сумма')
-    schedule = models.ForeignKey(Schedule, verbose_name='Расписание', on_delete=models.SET_NULL, null=True)
-    guest = models.ForeignKey(Guest, verbose_name='Донатор', on_delete=models.SET_NULL, null=True)
+    schedule = models.ForeignKey(Schedule, verbose_name='Расписание', on_delete=models.SET_NULL, null=True, related_name='donations')
+    guest = models.ForeignKey(Guest, verbose_name='Донатор', on_delete=models.SET_NULL, null=True, related_name='donations')
 
     def __str__(self):
         return self.guest
