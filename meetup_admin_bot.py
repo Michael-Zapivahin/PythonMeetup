@@ -16,7 +16,7 @@ API_TOKEN = env.str('BOT_TOKEN')
 state_storage = StateMemoryStorage()
 bot = TeleBot(API_TOKEN, state_storage=state_storage)
 
-admin_ids = env.list('ADMIN_IDS', subcast=int)
+admin_ids = env.list('ADMIN_IDS', default=[], subcast=int)
 
 
 class NewEventStates(StatesGroup):
