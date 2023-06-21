@@ -23,10 +23,16 @@ class Friend(models.Model):
 
 class Event(models.Model):
     topic = models.CharField(max_length=200, verbose_name='Тема')
-    date = models.DateTimeField('Дата')
+    date = models.DateField('Дата')
+    guests = models.ManyToManyField(Guest, through='EventGuests')
 
     def __str__(self):
         return self.topic
+
+
+class EventGuests(models.Model):
+    event = models.ForeignKey(Event, related_name='events', on_delete=models.CASCADE)
+    guest = models.ForeignKey(Guest, related_name='events', on_delete=models.CASCADE)
 
 
 class Schedule(models.Model):

@@ -7,7 +7,13 @@ from .models import (
     Question,
     Donation,
     Friend,
+    EventGuests,
 )
+
+
+@admin.register(EventGuests)
+class ClientAdmin(admin.ModelAdmin):
+    pass
 
 
 @admin.register(Friend)
@@ -15,14 +21,9 @@ class ClientAdmin(admin.ModelAdmin):
     pass
 
 
-# class FriendInline(admin.TabularInline):
-#     model = Friend
-#
-#
-# @admin.register(Guest)
-# class ClientAdmin(admin.ModelAdmin):
-#     model = Guest
-#     inlines = [FriendInline]
+@admin.register(Guest)
+class ClientAdmin(admin.ModelAdmin):
+    pass
 
 
 @admin.register(Schedule)
