@@ -1,11 +1,14 @@
 from environs import Env
 from textwrap import dedent
+from dateparser import parse
+from datetime import datetime
 
 from telebot import TeleBot, custom_filters
 from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton
 from telebot.handler_backends import State, StatesGroup
 from telebot.storage import StateMemoryStorage
 
+import meetup.db_operations as db
 
 env = Env()
 env.read_env()
@@ -55,16 +58,19 @@ def send_welcome(message):
         reply_markup=start_keyboard   
     )
 
-
+# меню выбора мероприятия
 @bot.callback_query_handler(func=lambda call: call.data == 'admin')
 def admin_root(call):
     chat_id = call.from_user.id
     
     if chat_id in admin_ids:
-        events = [] # список  мероприятий
+        events = db.get_all_events()
         event_keyboard = InlineKeyboardMarkup(row_width=1)
         for event in events:
-            event_keyboard.add(InlineKeyboardButton(event.name, callback_data=f'event_{event.id}'))
+            text = f'{event.date:%d-%m-%Y} "{event.topic}"'
+            event_keyboard.add(
+                InlineKeyboardButton(text, callback_data=f'event_{event.id}')
+            )
         
         event_keyboard.add(InlineKeyboardButton('Создать новое мероприятие', callback_data='new_event'))
         
@@ -94,8 +100,12 @@ def admin_request_new_event_date(message):
     bot.send_message(message.chat.id, 'Введите название мероприятия')
     bot.set_state(message.from_user.id, NewEventStates.name, message.chat.id)
     with bot.retrieve_data(message.from_user.id, message.chat.id) as data:
-        data['date'] = message.text
-
+        parsed_data = parse(
+            message.text,
+            languages=['ru',],
+            settings={'PREFER_DATES_FROM': 'future', 'DATE_ORDER': 'DMY'}
+        )
+        data['date'] = parsed_data.date() if parsed_data else datetime.now().date()
 
 @bot.message_handler(state=NewEventStates.name)
 def admin_request_new_event_name(message):
@@ -125,7 +135,7 @@ def admin_request_new_event_name(message):
             reply_markup=keyboard
         )
     
-    bot.delete_state(message.from_user.id, message.chat.id)
+    # 
 
 
 @bot.callback_query_handler(func=lambda call: call.data == 'create_event')
@@ -134,8 +144,25 @@ def admin_create_new_event(call):
     chat_id = call.from_user.id
     with bot.retrieve_data(chat_id, chat_id) as data:
         # Запись мероприятия в базу данных
-        pass
+        db.create_new_event(topic=data['name'], date=data['date'])
+        
+    bot.delete_state(chat_id, chat_id)
+    
+    # Переход на меню выбора мероприятий
+    class AdminRoot(object):
+        def __init__(self):
+            self.message = call.message  # либо call.message
+            self.data = 'admin'
+            self.from_user = call.from_user
+    admin_root(AdminRoot())
 
+
+# меню работы с мероприятиями
+@bot.callback_query_handler(func=lambda call: call.data.startswith('event_'))
+def admin_event_menu(call):
+    chat_id = call.from_user.id
+    event = db.get_event_by_id(call.data.split('_')[-1])
+    bot.send_message(chat_id=chat_id, text=event)
 
 
 bot.add_custom_filter(custom_filters.StateFilter(bot))
