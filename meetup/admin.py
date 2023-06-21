@@ -1,21 +1,22 @@
 from django.contrib import admin
-from adminsortable2.admin import SortableInlineAdminMixin
-from adminsortable2.admin import SortableAdminBase
 
 from .models import (
     Guest,
     Event,
     Schedule,
     Question,
-    Donation
+    Donation,
+    Friend,
+    EventGuests,
 )
 
 
-class ScheduleInline(SortableInlineAdminMixin, admin.TabularInline):
-    model = Schedule
+@admin.register(EventGuests)
+class ClientAdmin(admin.ModelAdmin):
+    pass
 
 
-@admin.register(Schedule)
+@admin.register(Friend)
 class ClientAdmin(admin.ModelAdmin):
     pass
 
@@ -25,12 +26,21 @@ class ClientAdmin(admin.ModelAdmin):
     pass
 
 
-@admin.register(Event)
-class ClientAdmin(SortableAdminBase, admin.ModelAdmin):
+@admin.register(Schedule)
+class ClientAdmin(admin.ModelAdmin):
     pass
-    # inlines = [
-    #     ScheduleInline,
-    # ]
+
+
+class ScheduleInline(admin.TabularInline):
+    model = Schedule
+
+
+@admin.register(Event)
+class ClientAdmin(admin.ModelAdmin):
+    model = Event
+    inlines = [
+        ScheduleInline,
+    ]
 
 
 @admin.register(Question)
