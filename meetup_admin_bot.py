@@ -58,7 +58,7 @@ def send_welcome(message):
         reply_markup=start_keyboard   
     )
 
-
+# меню выбора мероприятия
 @bot.callback_query_handler(func=lambda call: call.data == 'admin')
 def admin_root(call):
     chat_id = call.from_user.id
@@ -155,6 +155,14 @@ def admin_create_new_event(call):
             self.data = 'admin'
             self.from_user = call.from_user
     admin_root(AdminRoot())
+
+
+# меню работы с мероприятиями
+@bot.callback_query_handler(func=lambda call: call.data.startswith('event_'))
+def admin_event_menu(call):
+    chat_id = call.from_user.id
+    event = db.get_event_by_id(call.data.split('_')[-1])
+    bot.send_message(chat_id=chat_id, text=event)
 
 
 bot.add_custom_filter(custom_filters.StateFilter(bot))
