@@ -7,6 +7,7 @@ from telebot import TeleBot, custom_filters
 from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton
 from telebot.handler_backends import State, StatesGroup
 from telebot.storage import StateMemoryStorage
+from telebot.formatting import hbold
 
 import meetup.db_operations as db
 
@@ -158,11 +159,39 @@ def admin_create_new_event(call):
 
 
 # меню работы с мероприятиями
+
+def admin_keyboard():
+    return InlineKeyboardMarkup(
+        [
+            [InlineKeyboardButton('Изменить расписание', callback_data='edit_schedule')],
+            [InlineKeyboardButton('Контроль выступлений', callback_data='control_schedule')],
+            [InlineKeyboardButton('Отправка уведомления об изменениях', callback_data='send_schedule')],
+            [InlineKeyboardButton('Массовая рассылка сообщений', callback_data='send_message')],
+            [InlineKeyboardButton('Донаты на мероприятии', callback_data='donates_event')],
+            [InlineKeyboardButton('Удалить мероприятие', callback_data='delete_event')],
+        ]
+    )
+
 @bot.callback_query_handler(func=lambda call: call.data.startswith('event_'))
 def admin_event_menu(call):
     chat_id = call.from_user.id
     event = db.get_event_by_id(call.data.split('_')[-1])
-    bot.send_message(chat_id=chat_id, text=event)
+    
+    text = dedent(
+        f'''
+        Текущее мероприятие:
+        
+        {hbold(event.topic)}
+        
+        '''
+    )
+    
+    bot.send_message(
+        chat_id=chat_id,
+        text=text,
+        parse_mode='HTML',
+        reply_markup=admin_keyboard()
+    )
 
 
 bot.add_custom_filter(custom_filters.StateFilter(bot))

@@ -8,7 +8,6 @@ class Guest(models.Model):
     kind_activity = models.CharField(max_length=200, verbose_name='Вид деятельности', blank=True)
     open_for_contact = models.BooleanField('Открыт для контактов', default=False)
     projects = models.TextField('Проекты', blank=True)
-    telegram_id = models.IntegerField(max_length=15, default=1)
 
     def __str__(self):
         return f'{self.name}, phone: {self.phone}'
