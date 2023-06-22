@@ -67,3 +67,9 @@ def create_speech(event_id, start_at='09:00:00', end_at='09:00:00', topic='Но�
     
 def delete_speech(speech_id) -> None:
     Schedule.objects.get(id=speech_id).delete()
+
+
+def create_guest(name, phone, email, kind, projects, public, telegram_id):
+    print(name, phone, email, kind, projects, public, telegram_id)
+    return None
+
