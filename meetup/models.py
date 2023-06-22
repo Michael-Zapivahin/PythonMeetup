@@ -54,7 +54,7 @@ class EventGuests(models.Model):
 
 class Schedule(models.Model):
     topic = models.CharField(max_length=200, verbose_name='Тема')
-    start_at = models.TimeField('Время начала выстапуления', null=True)
+    start_at = models.TimeField('Время начала выступления', null=True)
     end_at = models.TimeField('Время окончания выступления', null=True, blank=True)
     speaker = models.ForeignKey(Guest, verbose_name='Спикер', on_delete=models.PROTECT, related_name='schedules', null=True)
     active = models.BooleanField(default=False)
