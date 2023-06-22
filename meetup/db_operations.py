@@ -16,3 +16,8 @@ def get_event_by_id(id) -> Event:
 
 def create_new_event(topic, date) -> None:
     Event.objects.create(topic=topic, date=date)
+
+
+def create_guest(name, phone, email, kind, projects, public, telegram_id):
+    print(name, phone, email, kind, projects, public, telegram_id)
+    return None
