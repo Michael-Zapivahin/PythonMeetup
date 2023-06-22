@@ -49,5 +49,21 @@ def create_new_event(topic, date) -> None:
     )
 
         
-def get_event_schedules(id) -> list[Schedule]:     
-    return Schedule.objects.filter(event_id=id).order_by('start_at')
+def get_event_schedules(event_id) -> list[Schedule]:     
+    return Schedule.objects.filter(event_id=event_id).order_by('start_at')
+
+
+def get_speech(speech_id) -> Schedule:
+    return Schedule.objects.get(id=speech_id)
+
+
+def create_speech(event_id, start_at='09:00:00', end_at='09:00:00', topic='Новое...') -> Schedule:
+    return Schedule.objects.create(
+        event_id=event_id,
+        start_at=start_at,
+        end_at=end_at,
+        topic=topic
+    )
+    
+def delete_speech(speech_id) -> None:
+    Schedule.objects.get(id=speech_id).delete()

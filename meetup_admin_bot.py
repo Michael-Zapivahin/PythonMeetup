@@ -25,10 +25,10 @@ class NewEventStates(StatesGroup):
     date = State()
     name = State()
 
-class AdminRoot(object):
-    def __init__(self, call):
+class AdminCallBackData(object):
+    def __init__(self, call, data):
         self.message = call.message  # либо call.message
-        self.data = 'admin'
+        self.data = data
         self.from_user = call.from_user
 
 
@@ -164,19 +164,20 @@ def admin_create_new_event(call):
     bot.delete_state(chat_id, chat_id)
     
     # Переход на меню выбора мероприятий
-    admin_root(AdminRoot(call))
+    admin_root(AdminCallBackData(call, 'admin'))
 
 
 # меню работы с мероприятиями
 def admin_keyboard(event_id):
     return InlineKeyboardMarkup(
         [
-            [InlineKeyboardButton('Изменить расписание', callback_data=f'edit_schedule_{event_id}')],
+            [InlineKeyboardButton('Изменить расписание', callback_data=f'show_schedule_{event_id}')],
             [InlineKeyboardButton('Контроль выступлений', callback_data=f'control_schedule_{event_id}')],
             [InlineKeyboardButton('Отправка уведомления об изменениях', callback_data=f'send_schedule_{event_id}')],
             [InlineKeyboardButton('Массовая рассылка сообщений', callback_data=f'send_message_{event_id}')],
             [InlineKeyboardButton('Донаты на мероприятии', callback_data=f'donates_event_{event_id}')],
             [InlineKeyboardButton('Удалить мероприятие', callback_data=f'delete_event_{event_id}')],
+            [InlineKeyboardButton('Назад', callback_data='admin')],
         ]
     )
 
@@ -238,7 +239,7 @@ def admin_request_delete_event(call):
 def admin_delete_event(call):
     db.delete_event(call.data.split('_')[-1])
     bot.answer_callback_query(call.id, 'Мероприятие успешно удалено')
-    admin_root(AdminRoot(call))
+    admin_root(AdminCallBackData(call, 'admin'))
 
 
 def speech_keyboard(event_id):
@@ -254,17 +255,17 @@ def speech_keyboard(event_id):
         keyboard.add(
             InlineKeyboardButton(
                 text_button,
-                callback_data=f'speech_edit_{event_id}_{speech.id}'
+                callback_data=f'edit_schedule_{event_id}_{speech.id}'
             ),
         )
 
-    keyboard.add(InlineKeyboardButton('Добавить выступление', callback_data=f'speech_edit_{event_id}_0'))
+    keyboard.add(InlineKeyboardButton('Добавить выступление', callback_data=f'edit_schedule_{event_id}_new'))
     keyboard.add(InlineKeyboardButton('Назад', callback_data=f'event_{event_id}'))
     
     return keyboard
 
 
-@bot.callback_query_handler(func=lambda call: call.data.startswith('edit_schedule'))
+@bot.callback_query_handler(func=lambda call: call.data.startswith('show_schedule'))
 def admin_edit_event_schedules(call):
     
     chat_id = call.from_user.id
@@ -285,8 +286,70 @@ def admin_edit_event_schedules(call):
         parse_mode='HTML',
         reply_markup=speech_keyboard(event_id)
     )
-    bot.delete_message(call.from_user.id, call.message.id)
+    bot.delete_message(call.from_user.id, call.message.id)  
+
+
+@bot.callback_query_handler(func=lambda call: call.data.startswith('edit_schedule'))    
+def admin_edit_schedule(call):
+    chat_id = call.from_user.id
+    *_, event_id, speech_id = call.data.split('_')
     
+    if speech_id == 'new':
+        speech = db.create_speech(event_id)
+        speech_id = speech.id        
+
+    speech = db.get_speech(speech_id)
+
+    keyboard = InlineKeyboardMarkup(
+        [
+            [
+                InlineKeyboardButton('Изменить начало',callback_data=f'edit_speech_start_{speech_id}'),
+                InlineKeyboardButton('Изменить окончание',callback_data=f'edit_speech_end_{speech_id}') 
+            ],
+            [
+                InlineKeyboardButton('Изменить спикера',callback_data=f'edit_speech_speaker_{speech_id}'),
+                InlineKeyboardButton('Изменить тему',callback_data=f'edit_speech_topic_{speech_id}') 
+            ],
+            [InlineKeyboardButton('Назад',callback_data=f'show_schedule_{event_id}'),],
+            [InlineKeyboardButton('Удалить',callback_data=f'edit_speech_delete_{speech_id}'),],
+        ]
+    )
+    
+    speaker = speech.speaker if speech.speaker else ''
+
+    text = dedent(
+        f'''
+        Редактировать выступление:
+        
+        Время: {speech.start_at:%H:%M}-{speech.end_at:%H:%M}
+        Спикер: {hcode(speaker)}
+        Тема: {hcode(speech.topic)}
+        '''
+    )
+    
+    bot.send_message(
+        chat_id=chat_id,
+        text=text,
+        parse_mode='HTML',
+        reply_markup=keyboard
+    )
+
+
+
+@bot.callback_query_handler(func=lambda call: call.data.startswith('edit_speech'))    
+def admin_edit_speech(call):
+    chat_id = call.from_user.id
+    *_, action, speech_id = call.data.split('_')
+    speech = db.get_speech(speech_id)
+    
+    if action == 'delete':
+        db.delete_speech(speech_id)
+        bot.answer_callback_query(call.id, 'Выступление удалено')
+        bot.delete_message(call.from_user.id, call.message.id)
+        admin_edit_event_schedules(AdminCallBackData(call, f'show_schedule_{speech.event.id}'))
+        
+    elif action == 'start':
+        pass
 
 
 bot.add_custom_filter(custom_filters.StateFilter(bot))
