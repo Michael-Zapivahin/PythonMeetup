@@ -56,7 +56,7 @@ class Schedule(models.Model):
     topic = models.CharField(max_length=200, verbose_name='Тема')
     start_at = models.TimeField('Время начала выстапуления', null=True)
     end_at = models.TimeField('Время окончания выступления', null=True, blank=True)
-    speaker = models.ForeignKey(Guest, verbose_name='Спикер', on_delete=models.PROTECT, related_name='schedules')
+    speaker = models.ForeignKey(Guest, verbose_name='Спикер', on_delete=models.PROTECT, related_name='schedules', null=True)
     active = models.BooleanField(default=False)
     event = models.ForeignKey(Event, verbose_name='Событие', on_delete=models.CASCADE, related_name='schedules')
 

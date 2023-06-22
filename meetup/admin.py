@@ -32,6 +32,7 @@ class ClientAdmin(admin.ModelAdmin):
 
 
 class ScheduleInline(admin.TabularInline):
+    extra=0
     model = Schedule
 
 
