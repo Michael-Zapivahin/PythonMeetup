@@ -8,6 +8,7 @@ from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton
 from telebot.handler_backends import State, StatesGroup
 from telebot.storage import StateMemoryStorage
 from telebot.formatting import hbold
+from telebot.types import LabeledPrice
 
 import meetup.db_operations as db
 
@@ -16,14 +17,17 @@ env = Env()
 env.read_env()
 
 
-
 API_TOKEN = env.str('BOT_TOKEN')
+
+PAYMENTS_TOKEN = env.str('PAYMENTS_TOKEN')
+
 state_storage = StateMemoryStorage()
 bot = TeleBot(API_TOKEN, state_storage=state_storage)
 
 admin_ids = env.list('ADMIN_IDS', default=[], subcast=int)
 
 guest_data = {}
+payment_data = {}
 
 
 class NewEventStates(StatesGroup):
@@ -44,7 +48,8 @@ def send_welcome(message):
     start_keyboard = InlineKeyboardMarkup(
         keyboard=[
             [InlineKeyboardButton('Зарегистрироваться', callback_data='register')],
-            [InlineKeyboardButton('Я - администратор', callback_data='admin')]
+            [InlineKeyboardButton('Я - администратор', callback_data='admin')],
+            [InlineKeyboardButton('Donate', callback_data='make_donate')]
         ]
     )
 
@@ -299,6 +304,62 @@ def guest_registration(call):
 
 
 
+
+
+# start payment block
+@bot.callback_query_handler(func=lambda call: call.data == 'make_donate')
+def donat_payment(call):
+    payment_data = {}
+    chat_id = call.from_user.id
+    bot.set_state(chat_id, state='make_payment')
+    bot.send_message(chat_id, 'Введите сумму. ')
+
+
+@bot.message_handler(state='make_payment')
+def donat_payment(message):
+    payment_data['amount'] = int(message.text)
+    chat_id = message.chat.id
+    amount = payment_data['amount']
+    price = []
+    price.append(LabeledPrice(label=f'Пожертвование ', amount=amount * 100))
+    bot.send_invoice(
+        chat_id,
+        'Пожертвование',
+        'Пожертвование',
+        'HAPPY FRIDAYS COUPON',
+        PAYMENTS_TOKEN,
+        'rub',
+        prices=price,
+        photo_url='',
+        photo_height=512,
+        photo_width=512,
+        photo_size=512,
+        is_flexible=False,
+        start_parameter='service-example')
+
+
+@bot.shipping_query_handler(func=lambda query: True)
+def shipping(shipping_query):
+    pass
+
+
+@bot.pre_checkout_query_handler(func=lambda query: True)
+def checkout(pre_checkout_query):
+    bot.answer_pre_checkout_query(pre_checkout_query.id, ok=True,
+                                  error_message="Произошла ошибка при оплате, попробуйте еще раз.")
+
+
+@bot.message_handler(content_types=['successful_payment'])
+def got_payment(message):
+
+    db.set_payment(record=payment_data)
+    bot.send_message(message.chat.id,
+                     'Срасибо за платеж! Мы будем рады видеть вас на наших мероприятих! '.format(
+                         message.successful_payment.total_amount / 100, message.successful_payment.currency),
+                     parse_mode='Markdown')
+
+
+# end payment block
 
 
 
