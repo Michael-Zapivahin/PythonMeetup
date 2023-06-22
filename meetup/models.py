@@ -10,6 +10,10 @@ class Guest(models.Model):
     projects = models.TextField('Проекты', blank=True)
     telegram_id = models.IntegerField('Телеграм ID')
 
+    class Meta:
+        verbose_name = 'посетитель'
+        verbose_name_plural = 'посетители'
+        
     def __str__(self):
         return f'{self.name}, phone: {self.phone}'
 
@@ -17,6 +21,10 @@ class Guest(models.Model):
 class Friend(models.Model):
     guest = models.ForeignKey(Guest, on_delete=models.CASCADE, related_name='me')
     friend = models.ForeignKey(Guest, on_delete=models.CASCADE, related_name='friend')
+
+    class Meta:
+        verbose_name = 'друг'
+        verbose_name_plural = 'друзья'
 
     def __str__(self):
         return f'{self.friend}'
@@ -27,6 +35,10 @@ class Event(models.Model):
     date = models.DateField('Дата')
     guests = models.ManyToManyField(Guest, through='EventGuests')
 
+    class Meta:
+        verbose_name = 'мероприятие'
+        verbose_name_plural = 'мероприятия'
+
     def __str__(self):
         return self.topic
 
@@ -35,14 +47,22 @@ class EventGuests(models.Model):
     event = models.ForeignKey(Event, related_name='events', on_delete=models.CASCADE)
     guest = models.ForeignKey(Guest, related_name='events', on_delete=models.CASCADE)
 
+    class Meta:
+        verbose_name = 'гость мероприятия'
+        verbose_name_plural = 'гости мероприятия'
+
 
 class Schedule(models.Model):
     topic = models.CharField(max_length=200, verbose_name='Тема')
-    date_start = models.DateTimeField('Дата')
-    date_end = models.DateTimeField('Дата')
+    start_at = models.TimeField('Время начала выстапуления', null=True)
+    end_at = models.TimeField('Время окончания выступления', null=True, blank=True)
     speaker = models.ForeignKey(Guest, verbose_name='Спикер', on_delete=models.PROTECT, related_name='schedules')
     active = models.BooleanField(default=False)
     event = models.ForeignKey(Event, verbose_name='Событие', on_delete=models.CASCADE, related_name='schedules')
+
+    class Meta:
+        verbose_name = 'доклад'
+        verbose_name_plural = 'доклады'
 
     def __str__(self):
         return self.topic
@@ -53,6 +73,10 @@ class Question(models.Model):
     schedule = models.ForeignKey(Schedule, verbose_name='Расписание', on_delete=models.SET_NULL, null=True, related_name='questions')
     guest = models.ForeignKey(Guest, on_delete=models.CASCADE, null=True, related_name='questions')
 
+    class Meta:
+        verbose_name = 'вопрос'
+        verbose_name_plural = 'вопросы'
+
     def __str__(self):
         return self.question[100]
 
@@ -61,6 +85,10 @@ class Donation(models.Model):
     amount = models.IntegerField('Сумма')
     schedule = models.ForeignKey(Schedule, verbose_name='Расписание', on_delete=models.SET_NULL, null=True, related_name='donations')
     guest = models.ForeignKey(Guest, verbose_name='Донатор', on_delete=models.SET_NULL, null=True, related_name='donations')
+
+    class Meta:
+        verbose_name = 'донат'
+        verbose_name_plural = 'донаты'
 
     def __str__(self):
         return self.guest
