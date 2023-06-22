@@ -319,8 +319,6 @@ def donat_payment(call):
 def donat_payment(message):
     payment_data['amount'] = int(message.text)
     chat_id = message.chat.id
-    # bot.set_state(chat_id, state=NewEventStates.guest_public)
-    # bot.send_message(chat_id, 'Введите ваши текущие проекты. ')
     amount = payment_data['amount']
     price = []
     price.append(LabeledPrice(label=f'Пожертвование ', amount=amount * 100))
@@ -356,7 +354,7 @@ def got_payment(message):
 
     db.set_payment(record=payment_data)
     bot.send_message(message.chat.id,
-                     'Срасибо за платеж! Мы будем рады видеть вас в нашем салоне! '.format(
+                     'Срасибо за платеж! Мы будем рады видеть вас на наших мероприятих! '.format(
                          message.successful_payment.total_amount / 100, message.successful_payment.currency),
                      parse_mode='Markdown')
 
