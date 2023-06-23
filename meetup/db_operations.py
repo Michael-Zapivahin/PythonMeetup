@@ -3,7 +3,7 @@ import django
 os.environ['DJANGO_SETTINGS_MODULE'] = 'pythonmeetup.settings'
 django.setup()
 
-from .models import Event
+from .models import Event, Guest
 
 
 def get_all_events() -> list[Event]:
@@ -18,6 +18,12 @@ def create_new_event(topic, date) -> None:
     Event.objects.create(topic=topic, date=date)
 
 
-def create_guest(name, phone, email, kind, projects, public, telegram_id):
-    print(name, phone, email, kind, projects, public, telegram_id)
-    return None
+def create_guest(name, phone, kind, projects, public, telegram_id) -> None:
+    Guest.objects.create(
+        name=name,
+        phone=phone,
+        kind_activity=kind,
+        projects=projects,
+        open_for_contact=public,
+        telegram_id=telegram_id
+    )

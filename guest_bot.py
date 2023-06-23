@@ -3,7 +3,7 @@ from textwrap import dedent
 from dateparser import parse
 from datetime import datetime
 
-from telebot import TeleBot, custom_filters, ext
+from telebot import TeleBot, custom_filters
 from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton
 from telebot.handler_backends import State, StatesGroup
 from telebot.storage import StateMemoryStorage
@@ -53,7 +53,7 @@ def send_welcome(message):
         ]
     )
 
-    active_event_name = 'Чат-боты: ожидание и реальность'  #запрос из БД
+    active_event_name = 'Чат-боты: ожидание и реальность'  # TODO: запрос из БД
     bot.send_message(
         chat_id=message.chat.id, 
         text=dedent(
@@ -225,21 +225,13 @@ def guest_registration(call):
 def guest_registration(message):
     guest_data['name'] = message.text
     chat_id = message.chat.id
-    bot.set_state(chat_id, state=NewEventStates.guest_email)
-    bot.send_message(chat_id, 'Введите ваш телефон. ')
-
-
-@bot.message_handler(state=NewEventStates.guest_email)
-def guest_registration(message):
-    guest_data['phone'] = message.text
-    chat_id = message.chat.id
     bot.set_state(chat_id, state=NewEventStates.guest_kind)
-    bot.send_message(chat_id, 'Введите ваш e-mail. ')
+    bot.send_message(chat_id, 'Введите ваш телефон. ')
 
 
 @bot.message_handler(state=NewEventStates.guest_kind)
 def guest_registration(message):
-    guest_data['email'] = message.text
+    guest_data['phone'] = message.text
     chat_id = message.chat.id
     bot.set_state(chat_id, state=NewEventStates.guest_projects)
     bot.send_message(chat_id, 'Введите ваш вид деятельности. ')
@@ -272,7 +264,7 @@ def guest_registration(message):
 @bot.callback_query_handler(func=lambda call: call.data.startswith('create_guest'))
 def guest_registration(call):
     telegram_id = call.from_user.id
-    if call == 'create_guest_yes':
+    if call.data == 'create_guest_yes':
         guest_data['public'] = True
     else:
         guest_data['public'] = False
@@ -285,25 +277,180 @@ def guest_registration(call):
     )
     bot.send_message(
         chat_id=telegram_id,
-        text=f'Проверьте ваши данные, и нажмите Да чтобы продолжть.. {guest_data}',
+        text=dedent(
+            f'''
+            Проверьте ваши данные, и нажмите Да чтобы продолжить: 
+            \nИмя, Фамилия - {guest_data.get('name')}
+            \nТелефон - {guest_data.get('phone')}
+            \nВид деятельности - {guest_data.get('kind')}
+            \nПроекты - {guest_data.get('projects')}
+            \nОткрыт к общению - {"Да" if guest_data.get('public') else "Нет"}
+            '''),
         reply_markup=keyboard
-    ),
+    )
 
 
 @bot.callback_query_handler(func=lambda call: call.data.startswith('db_create_guest'))
 def guest_registration(call):
+    telegram_id = call.from_user.id
     db.create_guest(
         guest_data['name'],
         guest_data['phone'],
-        guest_data['email'],
         guest_data['kind'],
         guest_data['projects'],
         guest_data['public'],
         call.from_user.id
     )
+    keyboard = get_keyboard(
+        [
+            ('ОК', 'guest_menu'),
+        ]
+    )
+    bot.send_message(
+        chat_id=telegram_id,
+        text=dedent(
+            f'''Регистрация прошла успешно'''
+        ),
+        reply_markup=keyboard
+    )
 
 
+@bot.callback_query_handler(func=lambda call: call.data.startswith('guest_menu'))
+def guest_menu(call):
+    telegram_id = call.from_user.id
+    keyboard = get_keyboard(
+        [
+            ('1. Узнать информацию о мероприятии', 'event'),
+            ('2. Расписание выступления спикеров', 'schedule'),
+            ('3. Получить информацию о следующих мероприятиях.', 'next_event'),
+            ('4. Донат', 'donat'),
+            ('5. Задать вопрос выступающему спикеру', 'question'),
+            ('6. Найти новые деловые контакты', 'find_contacts'),
 
+        ]
+    )
+    bot.send_message(
+        chat_id=telegram_id,
+        text=dedent(
+            f'''
+            Главное меню
+            '''),
+        reply_markup=keyboard
+    )
+
+
+@bot.callback_query_handler(func=lambda call: call.data.startswith('event'))
+def guest_menu(call):
+    telegram_id = call.from_user.id
+    keyboard = get_keyboard(
+        [
+            ('Назад', 'guest_menu'),
+        ]
+    )
+    bot.send_message( # TODO: Брать информацию из базы
+        chat_id=telegram_id,
+        text=dedent(
+            f'''
+            Информация о мероприятии 
+            '''),
+        reply_markup=keyboard
+    )
+
+
+@bot.callback_query_handler(func=lambda call: call.data.startswith('schedule'))
+def guest_menu(call):
+    telegram_id = call.from_user.id
+    keyboard = get_keyboard(
+        [
+            ('Назад', 'guest_menu'),
+        ]
+    )
+    bot.send_message( # TODO: Брать информацию из базы
+        chat_id=telegram_id,
+        text=dedent(
+            f'''
+            Расписание
+            '''),
+        reply_markup=keyboard
+    )
+
+
+@bot.callback_query_handler(func=lambda call: call.data.startswith('next_event'))
+def guest_menu(call):
+    telegram_id = call.from_user.id
+    keyboard = get_keyboard(
+        [
+            ('Назад', 'guest_menu'),
+        ]
+    )
+    bot.send_message( # TODO: Брать информацию из базы
+        chat_id=telegram_id,
+        text=dedent(
+            f'''
+            Информацию о следующих мероприятиях
+            '''),
+        reply_markup=keyboard
+    )
+
+
+@bot.callback_query_handler(func=lambda call: call.data.startswith('donat'))
+def guest_menu(call):
+    telegram_id = call.from_user.id
+    keyboard = get_keyboard(
+        [
+            ('100', 'guest_menu'),
+            ('500', 'guest_menu'),
+            ('1000', 'guest_menu'),
+            ('Назад', 'guest_menu'),
+        ]
+    )
+    bot.send_message( # TODO: подключить оплату
+        chat_id=telegram_id,
+        text=dedent(
+            f'''
+            Укажите сумму доната
+            '''),
+        reply_markup=keyboard
+    )
+
+
+@bot.callback_query_handler(func=lambda call: call.data.startswith('question'))
+def guest_menu(call):
+    telegram_id = call.from_user.id
+    keyboard = get_keyboard(
+        [
+            ('Назад', 'guest_menu'),
+        ]
+    )
+    bot.send_message( # TODO: настроить отправку вопроса
+        chat_id=telegram_id,
+        text=dedent(
+            f'''
+            Введите вопрос для докладчика
+            '''),
+        reply_markup=keyboard
+    )
+
+
+@bot.callback_query_handler(func=lambda call: call.data.startswith('find_contacts'))
+def guest_menu(call):
+    telegram_id = call.from_user.id
+    keyboard = get_keyboard(
+        [
+            ('Назад', 'guest_menu'),
+        ]
+    )
+    bot.send_message( # TODO: настроить вывод контактов из БД
+        chat_id=telegram_id,
+        text=dedent(
+            f'''
+            КУонтакты:
+            \n1. ...
+            \n2. ...
+            \n3. ...
+            '''),
+        reply_markup=keyboard
+    )
 
 
 # start payment block
