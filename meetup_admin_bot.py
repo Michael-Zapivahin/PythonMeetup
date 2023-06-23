@@ -73,6 +73,8 @@ def admin_root(call):
         event_keyboard = InlineKeyboardMarkup(row_width=1)
         for event in events:
             text = f'{event.date:%d-%m-%Y} "{event.topic}"'
+            if event.active:
+                text = '✅ ' + text
             event_keyboard.add(
                 InlineKeyboardButton(text, callback_data=f'event_{event.id}')
             )
@@ -168,18 +170,23 @@ def admin_create_new_event(call):
 
 
 # меню работы с мероприятиями
-def admin_keyboard(event_id):
-    return InlineKeyboardMarkup(
-        [
-            [InlineKeyboardButton('Изменить расписание', callback_data=f'show_schedule_{event_id}')],
-            [InlineKeyboardButton('Контроль выступлений', callback_data=f'control_schedule_{event_id}')],
-            [InlineKeyboardButton('Отправка уведомления об изменениях', callback_data=f'send_schedule_{event_id}')],
-            [InlineKeyboardButton('Массовая рассылка сообщений', callback_data=f'send_message_{event_id}')],
-            [InlineKeyboardButton('Донаты на мероприятии', callback_data=f'donates_event_{event_id}')],
-            [InlineKeyboardButton('Удалить мероприятие', callback_data=f'delete_event_{event_id}')],
-            [InlineKeyboardButton('Назад', callback_data='admin')],
-        ]
-    )
+def admin_keyboard(event):
+    event_id = event.id
+    
+    keyboard = InlineKeyboardMarkup(row_width=1)
+    if not event.active:
+        keyboard.add(InlineKeyboardButton('✅ Сделать активным', callback_data=f'activate_event_{event_id}'))
+    keyboard.add(
+            InlineKeyboardButton('Изменить расписание', callback_data=f'show_schedule_{event_id}'),
+            InlineKeyboardButton('Контроль выступлений', callback_data=f'control_schedule_{event_id}'),
+            InlineKeyboardButton('Отправка уведомления об изменениях', callback_data=f'send_schedule_{event_id}'),
+            InlineKeyboardButton('Массовая рассылка сообщений', callback_data=f'send_message_{event_id}'),
+            InlineKeyboardButton('Донаты на мероприятии', callback_data=f'donates_event_{event_id}'),
+            InlineKeyboardButton('Удалить мероприятие', callback_data=f'delete_event_{event_id}'),
+            InlineKeyboardButton('Назад', callback_data='admin'),
+        )
+    
+    return keyboard
 
 
 @bot.callback_query_handler(func=lambda call: call.data.startswith('event_'))
@@ -187,12 +194,14 @@ def admin_event_menu(call):
     chat_id = call.from_user.id
     event_id = call.data.split('_')[-1]
     event = db.get_event(event_id)
+    active = '✅ Текущее' if event.active else 'Архивное'
     
     text = dedent(
         f'''
-        Текущее мероприятие:
-        
+        Меню мероприятия:
+
         {hcode(event.topic)}
+        ({active})
         
         '''
     )
@@ -201,9 +210,34 @@ def admin_event_menu(call):
         chat_id=chat_id,
         text=text,
         parse_mode='HTML',
-        reply_markup=admin_keyboard(event.id)
+        reply_markup=admin_keyboard(event)
     )
     bot.delete_message(call.from_user.id, call.message.id)
+
+
+@bot.callback_query_handler(func=lambda call: call.data.startswith('activate_event'))
+def admin_set_active_event(call):
+    
+    event_id = call.data.split('_')[-1]
+    event = db.set_active_event(event_id)
+    active = '✅ Текущее' if event.active else 'Архивное'
+        
+    bot.edit_message_text(
+        chat_id=call.from_user.id,
+        message_id=call.message.id,
+        text=dedent(
+            f'''
+            Меню мероприятия:
+
+            {hcode(event.topic)}
+            ({active})
+            
+            '''
+        ),
+        reply_markup=admin_keyboard(event),
+        parse_mode='HTML'
+    )
+
 
 
 @bot.callback_query_handler(func=lambda call: call.data.startswith('delete_event'))

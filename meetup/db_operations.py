@@ -78,3 +78,13 @@ def create_guest(name, phone, kind, projects, public, telegram_id) -> None:
         open_for_contact=public,
         telegram_id=telegram_id
     )
+
+def set_active_event(event_id) -> Event:
+    
+    Event.objects.all().update(active=False)
+    current_event = Event.objects.get(id=event_id)
+    current_event.active = True
+    current_event.save()
+    
+    return current_event
+    
