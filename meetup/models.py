@@ -34,6 +34,7 @@ class Event(models.Model):
     topic = models.CharField(max_length=200, verbose_name='Тема')
     date = models.DateField('Дата')
     guests = models.ManyToManyField(Guest, through='EventGuests')
+    active = models.BooleanField(default=False)
 
     class Meta:
         verbose_name = 'мероприятие'
