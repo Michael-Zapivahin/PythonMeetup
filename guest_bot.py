@@ -12,10 +12,8 @@ from telebot.types import LabeledPrice
 
 import meetup.db_operations as db
 
-
 env = Env()
 env.read_env()
-
 
 API_TOKEN = env.str('BOT_TOKEN')
 
@@ -43,41 +41,43 @@ class NewEventStates(StatesGroup):
 
 @bot.message_handler(commands=['help', 'start'])
 def send_welcome(message):
-    print(message.chat.id)
-    
-    start_keyboard = InlineKeyboardMarkup(
-        keyboard=[
-            [InlineKeyboardButton('Зарегистрироваться', callback_data='register')],
-            [InlineKeyboardButton('Я - администратор', callback_data='admin')],
-            [InlineKeyboardButton('Donate', callback_data='make_donate')]
-        ]
-    )
+    guest = db.get_guest(message.chat.id)
+    keyboard = []
+    if guest:
+        keyboard.append([InlineKeyboardButton('Переход в меню', callback_data='guest_menu')])
+    else:
+        keyboard.append([InlineKeyboardButton('Зарегистрироваться', callback_data='register')])
+
+    keyboard.append([InlineKeyboardButton('Я - администратор', callback_data='admin')])
+
+    start_keyboard = InlineKeyboardMarkup(keyboard=keyboard)
 
     active_event_name = 'Чат-боты: ожидание и реальность'  # TODO: запрос из БД
     bot.send_message(
-        chat_id=message.chat.id, 
+        chat_id=message.chat.id,
         text=dedent(
             f'''
             Привествую тебя в Python Meetup!
-            
+
             Тема мероприятия:
             {active_event_name}
-            
+
             * Будь в курсе событий текущего мероприятия.
             * Следи за выступлениями спикеров.
             * Задавай вопросы прямо в чат-боте.
             * Найди новые контакты.
-            
+
             '''
         ),
-        reply_markup=start_keyboard   
+        reply_markup=start_keyboard
     )
+
 
 # меню выбора мероприятия
 @bot.callback_query_handler(func=lambda call: call.data == 'admin')
 def admin_root(call):
     chat_id = call.from_user.id
-    
+
     if chat_id in admin_ids:
         events = db.get_all_events()
         event_keyboard = InlineKeyboardMarkup(row_width=1)
@@ -86,23 +86,23 @@ def admin_root(call):
             event_keyboard.add(
                 InlineKeyboardButton(text, callback_data=f'event_{event.id}')
             )
-        
+
         event_keyboard.add(InlineKeyboardButton('Создать новое мероприятие', callback_data='new_event'))
-        
+
         bot.send_message(
             chat_id=chat_id,
             text='Выберите мероприятие или создайте новое',
             reply_markup=event_keyboard
         )
-          
+
     else:
-        bot.send_message(chat_id, 'Доступ только для администратора')    
+        bot.send_message(chat_id, 'Доступ только для администратора')
 
 
 @bot.callback_query_handler(func=lambda call: call.data == 'new_event')
 def admin_request_new_event(call):
     """запрос создания нового мероприятия"""
-    
+
     chat_id = call.from_user.id
     bot.set_state(chat_id, NewEventStates.date, chat_id)
     bot.send_message(chat_id, 'Введите дату мероприятия')
@@ -111,13 +111,13 @@ def admin_request_new_event(call):
 @bot.message_handler(state=NewEventStates.date)
 def admin_request_new_event_date(message):
     """Создание нового мероприятия - Шаг.1 Получение даты"""
-    
+
     bot.send_message(message.chat.id, 'Введите название мероприятия')
     bot.set_state(message.from_user.id, NewEventStates.name, message.chat.id)
     with bot.retrieve_data(message.from_user.id, message.chat.id) as data:
         parsed_data = parse(
             message.text,
-            languages=['ru',],
+            languages=['ru', ],
             settings={'PREFER_DATES_FROM': 'future', 'DATE_ORDER': 'DMY'}
         )
         data['date'] = parsed_data.date() if parsed_data else datetime.now().date()
@@ -142,34 +142,35 @@ def admin_request_new_event_name(message):
             text=dedent(
                 f'''
                 Подтвердите введенные данные:
-                
+
                 Название: {data["name"]}
                 Дата: {data["date"]}
-                
+
                 '''
             ),
             reply_markup=keyboard
         )
-    
-    # 
+
+    #
 
 
 @bot.callback_query_handler(func=lambda call: call.data == 'create_event')
 def admin_create_new_event(call):
-    """Создание нового мероприятия"""    
+    """Создание нового мероприятия"""
     chat_id = call.from_user.id
     with bot.retrieve_data(chat_id, chat_id) as data:
         # Запись мероприятия в базу данных
         db.create_new_event(topic=data['name'], date=data['date'])
-        
+
     bot.delete_state(chat_id, chat_id)
-    
+
     # Переход на меню выбора мероприятий
     class AdminRoot(object):
         def __init__(self):
             self.message = call.message  # либо call.message
             self.data = 'admin'
             self.from_user = call.from_user
+
     admin_root(AdminRoot())
 
 
@@ -187,30 +188,27 @@ def admin_keyboard():
         ]
     )
 
+
 @bot.callback_query_handler(func=lambda call: call.data.startswith('event_'))
 def admin_event_menu(call):
     chat_id = call.from_user.id
     event = db.get_event_by_id(call.data.split('_')[-1])
-    
+
     text = dedent(
         f'''
         Текущее мероприятие:
-        
+
         {hbold(event.topic)}
-        
+
         '''
     )
-    
+
     bot.send_message(
         chat_id=chat_id,
         text=text,
         parse_mode='HTML',
         reply_markup=admin_keyboard()
     )
-
-
-
-
 
 
 @bot.callback_query_handler(func=lambda call: call.data == 'register')
@@ -249,14 +247,14 @@ def guest_registration(message):
 def guest_registration(message):
     guest_data['projects'] = message.text
     keyboard = get_keyboard(
-       [
+        [
             ('Да', 'create_guest_yes'),
             ('Нет', 'create_guest_no')
         ]
     )
     bot.send_message(
         chat_id=message.chat.id,
-        text= 'Вы готовы к обмену данными?.',
+        text='Вы готовы к обмену данными?.',
         reply_markup=keyboard
     ),
 
@@ -270,7 +268,7 @@ def guest_registration(call):
         guest_data['public'] = False
 
     keyboard = get_keyboard(
-       [
+        [
             ('Да', 'db_create_guest'),
             ('Нет', 'register')
         ]
@@ -341,17 +339,23 @@ def guest_menu(call):
 
 @bot.callback_query_handler(func=lambda call: call.data.startswith('event'))
 def guest_menu(call):
+    event = db.get_event('', datetime.today())
     telegram_id = call.from_user.id
     keyboard = get_keyboard(
         [
             ('Назад', 'guest_menu'),
         ]
     )
-    bot.send_message( # TODO: Брать информацию из базы
+    if event:
+        event_about = event.topic
+    else:
+        event_about = 'Сегодня встреч нет.'
+
+    bot.send_message(  # TODO: Брать информацию из базы
         chat_id=telegram_id,
         text=dedent(
             f'''
-            Информация о мероприятии 
+            Информация о мероприятии {event_about}
             '''),
         reply_markup=keyboard
     )
@@ -359,17 +363,29 @@ def guest_menu(call):
 
 @bot.callback_query_handler(func=lambda call: call.data.startswith('schedule'))
 def guest_menu(call):
+    event = db.get_event('', datetime.today())
+    schedules_info = ''
+    if event:
+        for schedule in event.schedules.all():
+            schedules_info += f'''
+                        Тема: {schedule.topic}
+                        \n  Спикер: {schedule.speaker}  активное {schedule.active}
+                        \n Время начала {schedule.start_at}  Время окончания {schedule.end_at}
+            '''
+    else:
+        schedules_info = 'На сегодня докладов нет'
+
     telegram_id = call.from_user.id
     keyboard = get_keyboard(
         [
             ('Назад', 'guest_menu'),
         ]
     )
-    bot.send_message( # TODO: Брать информацию из базы
+    bot.send_message(
         chat_id=telegram_id,
         text=dedent(
             f'''
-            Расписание
+            Расписание: \n {schedules_info}
             '''),
         reply_markup=keyboard
     )
@@ -377,17 +393,22 @@ def guest_menu(call):
 
 @bot.callback_query_handler(func=lambda call: call.data.startswith('next_event'))
 def guest_menu(call):
+    events = db.get_all_events()
+    events_about = ''
+    for event in events:
+        events_about += f'Дата {event.date}, Тема {event.topic} \n'
+
     telegram_id = call.from_user.id
     keyboard = get_keyboard(
         [
             ('Назад', 'guest_menu'),
         ]
     )
-    bot.send_message( # TODO: Брать информацию из базы
+    bot.send_message(  # TODO: Брать информацию из базы
         chat_id=telegram_id,
         text=dedent(
             f'''
-            Информацию о следующих мероприятиях
+            Информацию о следующих мероприятиях {events_about}
             '''),
         reply_markup=keyboard
     )
@@ -398,13 +419,14 @@ def guest_menu(call):
     telegram_id = call.from_user.id
     keyboard = get_keyboard(
         [
-            ('100', 'guest_menu'),
-            ('500', 'guest_menu'),
-            ('1000', 'guest_menu'),
+            # ('100', 'make_donate'),
+            # ('500', 'make_donate'),
+            # ('1000', 'make_donate'),
+            ('Любая сумма', 'make_donate'),
             ('Назад', 'guest_menu'),
         ]
     )
-    bot.send_message( # TODO: подключить оплату
+    bot.send_message(  # TODO: подключить оплату
         chat_id=telegram_id,
         text=dedent(
             f'''
@@ -416,20 +438,34 @@ def guest_menu(call):
 
 @bot.callback_query_handler(func=lambda call: call.data.startswith('question'))
 def guest_menu(call):
-    telegram_id = call.from_user.id
+    chat_id = call.from_user.id
+    schedule = db.get_active_schedule()
+    if schedule:
+        speaker = schedule.speaker
+        bot.set_state(chat_id, state=f'make_question')
+        speaker_text = f'Введите вопрос для докладчика {speaker}'
+    else:
+        bot.set_state(chat_id, state='guest_menu')
+        speaker_text = 'Нет активных докладчиков'
+
+    bot.send_message(chat_id, speaker_text)
+
+
+@bot.message_handler(state='make_question')
+def make_question(message):
+    chat_id = message.chat.id
+    question = message.text
+    guest = db.get_guest(chat_id)
+    schedule = db.get_active_schedule()
+
+    db.create_question(question, schedule, guest)
+    # bot.set_state(chat_id, state='guest_menu')
     keyboard = get_keyboard(
         [
             ('Назад', 'guest_menu'),
         ]
     )
-    bot.send_message( # TODO: настроить отправку вопроса
-        chat_id=telegram_id,
-        text=dedent(
-            f'''
-            Введите вопрос для докладчика
-            '''),
-        reply_markup=keyboard
-    )
+    bot.send_message(chat_id, 'Ваш вопрос успешно отправлен.', reply_markup=keyboard)
 
 
 @bot.callback_query_handler(func=lambda call: call.data.startswith('find_contacts'))
@@ -440,7 +476,7 @@ def guest_menu(call):
             ('Назад', 'guest_menu'),
         ]
     )
-    bot.send_message( # TODO: настроить вывод контактов из БД
+    bot.send_message(  # TODO: настроить вывод контактов из БД
         chat_id=telegram_id,
         text=dedent(
             f'''
@@ -498,7 +534,6 @@ def checkout(pre_checkout_query):
 
 @bot.message_handler(content_types=['successful_payment'])
 def got_payment(message):
-
     db.set_payment(record=payment_data)
     bot.send_message(message.chat.id,
                      'Срасибо за платеж! Мы будем рады видеть вас на наших мероприятих! '.format(
@@ -507,13 +542,6 @@ def got_payment(message):
 
 
 # end payment block
-
-
-
-
-
-
-
 
 def get_keyboard(keys):
     buttons = []
