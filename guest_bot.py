@@ -12,6 +12,8 @@ from telebot.types import LabeledPrice
 
 import meetup.db_operations as db
 
+from meetup.models import Donation
+
 env = Env()
 env.read_env()
 
@@ -534,7 +536,7 @@ def checkout(pre_checkout_query):
 
 @bot.message_handler(content_types=['successful_payment'])
 def got_payment(message):
-    db.set_payment(record=payment_data)
+    save_payment(payment_data['amount'], db.get_active_schedule(), db.get_guest(message.chat.id))
     bot.send_message(message.chat.id,
                      'Срасибо за платеж! Мы будем рады видеть вас на наших мероприятих! '.format(
                          message.successful_payment.total_amount / 100, message.successful_payment.currency),
@@ -548,6 +550,10 @@ def get_keyboard(keys):
     for key in keys:
         buttons.append([InlineKeyboardButton(key[0], callback_data=key[1])])
     return InlineKeyboardMarkup(keyboard=buttons)
+
+
+def save_payment(amount, schedule, guest):
+    Donation.object.create(amount=amount, schedule=schedule, guest=guest)
 
 
 bot.add_custom_filter(custom_filters.StateFilter(bot))
