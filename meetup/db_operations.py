@@ -69,6 +69,23 @@ def delete_speech(speech_id) -> None:
     Schedule.objects.get(id=speech_id).delete()
 
 
+def update_speech(speech_id: int, update_speech_data: dict) -> Speech:
+
+    Schedule.objects.filter(id=speech_id).update(**update_speech_data)
+ 
+    return Schedule.objects.get(id=speech_id)
+ 
+
+def update_speech_speaker(speech_id: int, update_speech_data: dict) -> Speech:
+    telegram_id = update_speech_data['speaker_id']
+    name = update_speech_data['speaker_name']
+    
+    speaker, _ = Guest.objects.update_or_create(telegram_id=telegram_id, defaults={'name': name})
+    Schedule.objects.filter(id=speech_id).update(speaker=speaker)
+ 
+    return Schedule.objects.get(id=speech_id)
+    
+
 def create_guest(name, phone, kind, projects, public, telegram_id) -> None:
     Guest.objects.create(
         name=name,
