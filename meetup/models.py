@@ -8,7 +8,7 @@ class Guest(models.Model):
     kind_activity = models.CharField(max_length=200, verbose_name='Вид деятельности', blank=True)
     open_for_contact = models.BooleanField('Открыт для контактов', default=False)
     projects = models.TextField('Проекты', blank=True)
-    telegram_id = models.IntegerField('Телеграм ID')
+    telegram_id = models.IntegerField('Телеграм ID', unique=True)
 
     class Meta:
         verbose_name = 'посетитель'
@@ -34,6 +34,7 @@ class Event(models.Model):
     topic = models.CharField(max_length=200, verbose_name='Тема')
     date = models.DateField('Дата')
     guests = models.ManyToManyField(Guest, through='EventGuests')
+    active = models.BooleanField(default=False)
 
     class Meta:
         verbose_name = 'мероприятие'
