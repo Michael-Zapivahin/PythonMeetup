@@ -4,8 +4,11 @@ import django
 os.environ['DJANGO_SETTINGS_MODULE'] = 'pythonmeetup.settings'
 django.setup()
 
-from .models import Event, Schedule, Guest
+from .models import Event, Schedule, Guest, Question
 from typing import NamedTuple
+
+from django.shortcuts import get_object_or_404
+from django.http import Http404
 
 class Speech(NamedTuple):
     time: str
@@ -104,4 +107,23 @@ def set_active_event(event_id) -> Event:
     current_event.save()
     
     return current_event
-    
+
+
+
+def get_guest(telegram_id) -> Guest:
+    try:
+        return get_object_or_404(Guest, telegram_id=telegram_id)
+    except Http404:
+        pass
+
+
+def get_active_schedule():
+    try:
+        return get_object_or_404(Schedule, active=True)
+    except Http404:
+        return
+
+
+def create_question(question, schedule, guest):
+    Question.objects.create(question=question, schedule=schedule, guest=guest)
+
