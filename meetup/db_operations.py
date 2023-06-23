@@ -56,6 +56,17 @@ def get_event_schedules(event_id) -> list[Schedule]:
     return Schedule.objects.filter(event_id=event_id).order_by('start_at')
 
 
+def get_active_event_schedule(event_id) -> Schedule:
+    active_schedule = Schedule.objects.filter(event_id=event_id, active=True).first()
+    
+    return active_schedule if active_schedule else None
+
+
+def set_active_schedule(speech_id) -> None:
+      Schedule.objects.all().update(active=False)
+      Schedule.objects.filter(id=speech_id).update(active=True)
+    
+
 def get_speech(speech_id) -> Schedule:
     return Schedule.objects.get(id=speech_id)
 

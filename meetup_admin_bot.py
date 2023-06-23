@@ -275,24 +275,35 @@ def admin_delete_event(call):
     admin_root(AdminCallBackData(call, 'admin'))
 
 
-def speech_keyboard(event_id):
+def speech_keyboard(event_id, control=False):
     schedules = db.get_event_schedules(event_id)
+    if control:
+        active_speech = db.get_active_event_schedule(event_id)
     
     keyboard = InlineKeyboardMarkup()
     for speech in schedules:
         text_button = f'{speech.start_at:%H:%M}-{speech.end_at:%H:%M}'
         if speech.speaker:
             text_button += f' {speech.speaker.name}'
-        text_button += f' "{speech.topic}"'
         
-        keyboard.add(
+        if not control:
+            text_button += f' "{speech.topic}"'
+            callback_data = f'edit_schedule_{event_id}_{speech.id}'
+        else:
+            if speech == active_speech:
+                text_button += ' ✅'
+            callback_data = f'set_active_schedule_{event_id}_{speech.id}'
+        
+        buttons = [
             InlineKeyboardButton(
                 text_button,
-                callback_data=f'edit_schedule_{event_id}_{speech.id}'
+                callback_data=callback_data
             ),
-        )
-
-    keyboard.add(InlineKeyboardButton('Добавить выступление', callback_data=f'edit_schedule_{event_id}_new'))
+        ]
+        
+        keyboard.add(*buttons)
+    if not control:
+        keyboard.add(InlineKeyboardButton('Добавить выступление', callback_data=f'edit_schedule_{event_id}_new'))
     keyboard.add(InlineKeyboardButton('Назад', callback_data=f'event_{event_id}'))
     
     return keyboard
@@ -307,7 +318,7 @@ def admin_edit_event_schedules(call):
     
     text = dedent(
         f'''
-        Мероприятие: {hcode(event.topic)}       
+        Редактор расписания: {hcode(event.topic)}       
         
         Расписание:
         '''
@@ -320,6 +331,54 @@ def admin_edit_event_schedules(call):
         reply_markup=speech_keyboard(event_id)
     )
     bot.delete_message(call.from_user.id, call.message.id)  
+
+
+@bot.callback_query_handler(func=lambda call: call.data.startswith('control_schedule'))
+def admin_control_event_schedules(call):
+    
+    chat_id = call.from_user.id
+    event_id = call.data.split('_')[-1]
+    event = db.get_event(event_id)
+    bot.delete_message(call.from_user.id, call.message.id)  
+    
+    text = dedent(
+        f'''
+        Контроль хода мероприятия: {hcode(event.topic)}       
+        
+        Выбирайте текущее активное выступление:
+        '''
+    )
+    
+    bot.send_message(
+        chat_id=chat_id,
+        text=text,
+        parse_mode='HTML',
+        reply_markup=speech_keyboard(event_id, control=True)
+    )
+
+
+@bot.callback_query_handler(func=lambda call: call.data.startswith('set_active_schedule'))
+def admin_set_active_schedule(call):
+    chat_id = call.from_user.id
+    *_, event_id, speech_id = call.data.split('_')
+    event = db.get_event(event_id)
+    db.set_active_schedule(speech_id)
+
+    text = dedent(
+        f'''
+        Контроль хода мероприятия: {hcode(event.topic)}       
+        
+        Выбирайте текущее активное выступление:
+        '''
+    )
+    
+    bot.edit_message_text(
+        chat_id=chat_id,
+        text=text,
+        message_id=call.message.id,
+        parse_mode='HTML',
+        reply_markup=speech_keyboard(event_id, control=True)
+    )
 
 
 def speech_edit_keyboard(speech):
