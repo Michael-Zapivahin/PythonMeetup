@@ -136,6 +136,9 @@ def set_active_event(event_id) -> Event:
 def get_active_event() -> Event:
     return Event.objects.filter(date__gte=datetime.today(), active=True).first()
 
+def get_contacts(telegram_id):
+    return Guest.objects.filter(open_for_contact=True).exclude(telegram_id=telegram_id)  # FIXME: выводить только пользователей текущего мероприятия
+
 
 def get_guest(telegram_id) -> Guest:
     try:

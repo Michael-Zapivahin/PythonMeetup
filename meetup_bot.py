@@ -873,20 +873,27 @@ def make_question(message):
 @bot.callback_query_handler(func=lambda call: call.data.startswith('find_contacts'))
 def guest_menu(call):
     telegram_id = call.from_user.id
+    contacts_per_iteration = 1
+    contacts = db.get_contacts(telegram_id)
+
+    text = 'Контакты:'
+    for contact in contacts[:5]:
+        text += f'\n{contact.name}\n{contact.phone}\n{contact.kind_activity}\nПроекты: {contact.projects}\n'
+
+
+    if not contacts:
+        text += '\n Нет контактов'
+
+
     keyboard = get_keyboard(
         [
             ('Назад', 'guest_menu'),
         ]
     )
-    bot.send_message(  # TODO: настроить вывод контактов из БД
+
+    bot.send_message(
         chat_id=telegram_id,
-        text=dedent(
-            f'''
-            КУонтакты:
-            \n1. ...
-            \n2. ...
-            \n3. ...
-            '''),
+        text=text,
         reply_markup=keyboard
     )
 
