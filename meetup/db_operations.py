@@ -31,8 +31,8 @@ def get_all_events() -> list[Event]:
     return Event.objects.all()
 
 
-def get_event(id) -> Event:
-    return Event.objects.get(id=id)
+def get_event(event_id) -> Event:
+    return Event.objects.get(id=event_id)
 
 
 def delete_event(id) -> None:
@@ -60,6 +60,12 @@ def update_event(event_id, topic, date) -> None:
 
 def get_event_schedules(event_id) -> list[Schedule]:
     return Schedule.objects.filter(event_id=event_id).order_by('start_at')
+
+
+def get_event_speakers_ids(event_id) -> list[Event]:
+    speakers_ids = Schedule.objects.filter(event_id=event_id).values_list('speaker__telegram_id')
+    return set([id[0] for id in speakers_ids if id[0]])
+
 
 
 def get_active_event_schedule(event_id) -> Schedule:
@@ -135,6 +141,7 @@ def set_active_event(event_id) -> Event:
 
 def get_active_event() -> Event:
     return Event.objects.filter(date__gte=datetime.today(), active=True).first()
+
 
 def get_contacts(telegram_id):
     current_event = get_active_event()

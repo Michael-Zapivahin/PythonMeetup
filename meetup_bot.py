@@ -213,17 +213,75 @@ def admin_keyboard(event):
     if not event.active:
         keyboard.add(InlineKeyboardButton('✅ Сделать активным', callback_data=f'activate_event_{event_id}'))
     keyboard.add(
-        InlineKeyboardButton('Редактировать', callback_data=f'edit_event_{event_id}'),
-        InlineKeyboardButton('Изменить расписание', callback_data=f'show_schedule_{event_id}'),
-        InlineKeyboardButton('Контроль выступлений', callback_data=f'control_schedule_{event_id}'),
-        InlineKeyboardButton('Отправка уведомления об изменениях', callback_data=f'send_schedule_{event_id}'),
-        InlineKeyboardButton('Массовая рассылка сообщений', callback_data=f'send_message_{event_id}'),
-        InlineKeyboardButton('Донаты на мероприятии', callback_data=f'donates_event_{event_id}'),
-        InlineKeyboardButton('Удалить мероприятие', callback_data=f'delete_event_{event_id}'),
+        InlineKeyboardButton(
+            'Редактировать',
+            callback_data=f'edit_event_{event_id}'
+        ),
+        InlineKeyboardButton(
+            'Изменить расписание',
+            callback_data=f'show_schedule_{event_id}'
+        ),
+        InlineKeyboardButton(
+            'Контроль выступлений',
+            callback_data=f'control_schedule_{event_id}'
+        ),
+        InlineKeyboardButton(
+            'Уведомление спикеров',
+            callback_data=f'notify_speakers_{event_id}'
+        ),
+        InlineKeyboardButton(
+            'Уведомления гостей об изменениях',
+            callback_data=f'notify_guests_{event_id}'
+        ),
+        InlineKeyboardButton(
+            'Массовая рассылка сообщений',
+            callback_data=f'send_common_message'
+        ),
+        InlineKeyboardButton(
+            'Отчет по донатам на мероприятии',
+            callback_data=f'donates_event_{event_id}'
+        ),
+        InlineKeyboardButton(
+            'Удалить мероприятие',
+            callback_data=f'delete_event_{event_id}'
+        ),
         InlineKeyboardButton('Назад', callback_data='admin'),
     )
 
     return keyboard
+
+
+@bot.callback_query_handler(func=lambda call: call.data.startswith('notify_speakers'))
+def admin_notify_speakers(call):
+    *_, event_id = call.data.split('_')
+    event = db.get_event(event_id)
+    ids = db.get_event_speakers_ids(event_id)
+    
+    text = dedent(
+        f'''
+        Вас привествует PythonMeetup!
+        
+        Напоминаем, что Вы вляетесь спикером
+        на нашем мероприятии
+        
+        Дата: {event.date}
+        Тема мероприятия:
+        {event.topic}
+        
+        '''
+    )
+    keyboard = get_keyboard(
+        [
+            ('Перейти в мероприятие', 'guest_menu')
+        ]
+    )
+    for id in ids:
+        bot.send_message(
+            chat_id=id,
+            text=text,
+            reply_markup=keyboard
+        )
+    bot.answer_callback_query('Уведомления отправлены!')
 
 
 @bot.callback_query_handler(func=lambda call: call.data.startswith('event_'))

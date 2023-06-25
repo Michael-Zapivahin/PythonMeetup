@@ -40,7 +40,8 @@ pip install -r requirements.txt
 BOT_TOKEN='YOUR_TELEGRAM_BOT_TOKEN'
 ```
 
-* Платежный токен Вашего бота:
+* Платежный токен Вашего бота (в проекте используется агент Юкасса):  
+Для тестового платежа используйте карту `1111 1111 1111 1026` `12/22` `000`
 
 ```bash
 PAYMENTS_TOKEN='YOUR_PAYMENT_TOKEN'
