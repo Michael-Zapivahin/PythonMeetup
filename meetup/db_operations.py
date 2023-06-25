@@ -4,7 +4,7 @@ import django
 os.environ['DJANGO_SETTINGS_MODULE'] = 'pythonmeetup.settings'
 django.setup()
 
-from .models import Event, Schedule, Guest, Question, EventGuests
+from .models import Event, Schedule, Guest, Question, EventGuests, Donation
 from typing import NamedTuple
 
 from django.shortcuts import get_object_or_404
@@ -169,3 +169,6 @@ def get_active_schedule():
 def create_question(question, schedule, guest):
     Question.objects.create(question=question, schedule=schedule, guest=guest)
 
+
+def save_payment(amount, event, guest):
+    Donation.objects.create(amount=amount, event=event, guest=guest)
