@@ -52,6 +52,10 @@ def create_new_event(topic, date) -> None:
     )
 
 
+def update_event(event_id, topic, date) -> None:
+    Event.objects.filter(id=event_id).update(topic=topic, date=date)    
+
+
 def get_event_schedules(event_id) -> list[Schedule]:
     return Schedule.objects.filter(event_id=event_id).order_by('start_at')
 

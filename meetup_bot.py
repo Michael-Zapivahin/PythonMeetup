@@ -29,7 +29,7 @@ guest_data = {}
 payment_data = {}
 
 
-class NewEventStates(StatesGroup):
+class EventEditStates(StatesGroup):
     date = State()
     name = State()
 
@@ -48,21 +48,21 @@ class AdminCallBackData(object):
 
 
 @bot.message_handler(commands=['help', 'start'])
-def send_welcome_guest(message):
-    guest = db.get_guest(message.chat.id)
-    start_keyboard = []
-    if guest:
-        start_keyboard.append([InlineKeyboardButton('Переход в меню', callback_data='guest_menu')])
-    else:
-        start_keyboard.append([InlineKeyboardButton('Зарегистрироваться', callback_data='register')])
-        start_keyboard.append([InlineKeyboardButton('Переход в меню  без регистрации', callback_data='guest_menu')])
+def send_welcome(message):
+    # guest = db.get_guest(message.chat.id)
+    # start_keyboard = []
+    # if guest:
+    #     start_keyboard.append([InlineKeyboardButton('Переход в меню', callback_data='guest_menu')])
+    # else:
+    #     start_keyboard.append([InlineKeyboardButton('Зарегистрироваться', callback_data='register')])
+    #     start_keyboard.append([InlineKeyboardButton('Переход в меню  без регистрации', callback_data='guest_menu')])
 
-    # start_keyboard = InlineKeyboardMarkup(
-    #     keyboard=[
-    #         [InlineKeyboardButton('Зарегистрироваться', callback_data='register')],
-    #         [InlineKeyboardButton('Я - администратор', callback_data='admin')]
-    #     ]
-    # )
+    start_keyboard = InlineKeyboardMarkup(
+        keyboard=[
+            [InlineKeyboardButton('Зарегистрироваться', callback_data='register')],
+            [InlineKeyboardButton('Я - администратор', callback_data='admin')]
+        ]
+    )
 
     active_event_name = 'Чат-боты: ожидание и реальность'  # запрос из БД
     bot.send_message(
@@ -100,11 +100,19 @@ def admin_root(call):
                 InlineKeyboardButton(text, callback_data=f'event_{event.id}')
             )
 
-        event_keyboard.add(InlineKeyboardButton('Создать новое мероприятие', callback_data='new_event'))
+        event_keyboard.add(InlineKeyboardButton('Создать новое мероприятие', callback_data='edit_event_new'))
+
+        text=dedent(
+            f'''
+            Выберите мероприятие или создайте новое.
+            
+            '✅ - активное мероприятие'
+            '''
+        )
 
         bot.send_message(
             chat_id=chat_id,
-            text='Выберите мероприятие или создайте новое',
+            text=text,
             reply_markup=event_keyboard
         )
     else:
@@ -112,12 +120,13 @@ def admin_root(call):
     bot.delete_message(call.from_user.id, call.message.id)
 
 
-@bot.callback_query_handler(func=lambda call: call.data == 'new_event')
-def admin_request_new_event(call):
+@bot.callback_query_handler(func=lambda call: call.data.startswith('edit_event'))
+def admin_request_edit_event(call):
     """запрос создания нового мероприятия"""
-
+    *_, event_id = call.data.split('_')
     chat_id = call.from_user.id
-    bot.set_state(chat_id, NewEventStates.date, chat_id)
+    bot.set_state(chat_id, EventEditStates.date, chat_id)
+    bot.add_data(chat_id, chat_id, event_id=event_id)
     bot.send_message(
         chat_id=chat_id,
         text=dedent(
@@ -130,12 +139,12 @@ def admin_request_new_event(call):
     )
 
 
-@bot.message_handler(state=NewEventStates.date)
+@bot.message_handler(state=EventEditStates.date)
 def admin_request_new_event_date(message):
     """Создание нового мероприятия - Шаг.1 Получение даты"""
 
     bot.send_message(message.chat.id, 'Введите название мероприятия')
-    bot.set_state(message.from_user.id, NewEventStates.name, message.chat.id)
+    bot.set_state(message.from_user.id, EventEditStates.name, message.chat.id)
     with bot.retrieve_data(message.from_user.id, message.chat.id) as data:
         parsed_data = parse(
             message.text,
@@ -145,7 +154,7 @@ def admin_request_new_event_date(message):
         data['date'] = parsed_data.date() if parsed_data else datetime.now().date()
 
 
-@bot.message_handler(state=NewEventStates.name)
+@bot.message_handler(state=EventEditStates.name)
 def admin_request_new_event_name(message):
     """Создание нового мероприятия - Шаг.2 Получение наименования"""
 
@@ -182,8 +191,15 @@ def admin_create_new_event(call):
     chat_id = call.from_user.id
     with bot.retrieve_data(chat_id, chat_id) as data:
         # Запись мероприятия в базу данных
-        db.create_new_event(topic=data['name'], date=data['date'])
-    bot.answer_callback_query(call.id, 'Мероприятие успешно создано')
+        if data['event_id'] == 'new':
+            db.create_new_event(topic=data['name'], date=data['date'])
+        else:
+            db.update_event(
+                event_id=data['event_id'],
+                topic=data['name'],
+                date=data['date']
+            )
+    bot.answer_callback_query(call.id, 'Мероприятие сохранено')
     bot.delete_state(chat_id, chat_id)
 
     # Переход на меню выбора мероприятий
@@ -198,6 +214,7 @@ def admin_keyboard(event):
     if not event.active:
         keyboard.add(InlineKeyboardButton('✅ Сделать активным', callback_data=f'activate_event_{event_id}'))
     keyboard.add(
+        InlineKeyboardButton('Редактировать', callback_data=f'edit_event_{event_id}'),
         InlineKeyboardButton('Изменить расписание', callback_data=f'show_schedule_{event_id}'),
         InlineKeyboardButton('Контроль выступлений', callback_data=f'control_schedule_{event_id}'),
         InlineKeyboardButton('Отправка уведомления об изменениях', callback_data=f'send_schedule_{event_id}'),
@@ -219,7 +236,9 @@ def admin_event_menu(call):
 
     text = dedent(
         f'''
-        Мероприятие: {hcode(event.topic)}
+        Меню мероприятия:
+        Дата: {event.date}
+        Тема: {event.topic}
         ({active})
         '''
     )
@@ -244,7 +263,9 @@ def admin_set_active_event(call):
         message_id=call.message.id,
         text=dedent(
             f'''
-            Мероприятие: {hcode(event.topic)}
+            Меню мероприятия:
+            Дата: {event.date}
+            Тема: {event.topic}
             ({active})
             '''
         ),
@@ -272,7 +293,8 @@ def admin_request_delete_event(call):
         text=dedent(
             f'''
             Вы уверены, что хотите удалить мероприятие:
-            {hcode(event.topic)}
+            Дата: {event.date}
+            Тема: {event.topic}
             '''
         ),
         reply_markup=yes_no_keyboard,
@@ -330,7 +352,9 @@ def admin_edit_event_schedules(call):
 
     text = dedent(
         f'''
-        Редактор расписания: {hcode(event.topic)}       
+        Редактор расписания: 
+        Дата: {event.date}
+        Тема: {event.topic}    
 
         Расписание:
         '''
@@ -554,43 +578,37 @@ def admin_delete_speech(call):
     admin_edit_event_schedules(AdminCallBackData(call, f'show_schedule_{speech.event.id}'))
 
 
+# @bot.message_handler(commands=['help_guest', 'guest_start'])
+# def send_welcome(message):
+#     guest = db.get_guest(message.chat.id)
+#     keyboard = []
+#     if guest:
+#         keyboard.append([InlineKeyboardButton('Переход в меню', callback_data='guest_menu')])
+#     else:
+#         keyboard.append([InlineKeyboardButton('Зарегистрироваться', callback_data='register')])
+#         keyboard.append([InlineKeyboardButton('Переход в меню  без регистрации', callback_data='guest_menu')])
 
+#     start_keyboard = InlineKeyboardMarkup(keyboard=keyboard)
 
+#     active_event_name = 'Чат-боты: ожидание и реальность'  # TODO: запрос из БД
+#     bot.send_message(
+#         chat_id=message.chat.id,
+#         text=dedent(
+#             f'''
+#             Привествую тебя в Python Meetup!
 
+#             Тема мероприятия:
+#             {active_event_name}
 
+#             * Будь в курсе событий текущего мероприятия.
+#             * Следи за выступлениями спикеров.
+#             * Задавай вопросы прямо в чат-боте.
+#             * Найди новые контакты.
 
-
-@bot.message_handler(commands=['help_guest', 'guest_start'])
-def send_welcome(message):
-    guest = db.get_guest(message.chat.id)
-    keyboard = []
-    if guest:
-        keyboard.append([InlineKeyboardButton('Переход в меню', callback_data='guest_menu')])
-    else:
-        keyboard.append([InlineKeyboardButton('Зарегистрироваться', callback_data='register')])
-        keyboard.append([InlineKeyboardButton('Переход в меню  без регистрации', callback_data='guest_menu')])
-
-    start_keyboard = InlineKeyboardMarkup(keyboard=keyboard)
-
-    active_event_name = 'Чат-боты: ожидание и реальность'  # TODO: запрос из БД
-    bot.send_message(
-        chat_id=message.chat.id,
-        text=dedent(
-            f'''
-            Привествую тебя в Python Meetup!
-
-            Тема мероприятия:
-            {active_event_name}
-
-            * Будь в курсе событий текущего мероприятия.
-            * Следи за выступлениями спикеров.
-            * Задавай вопросы прямо в чат-боте.
-            * Найди новые контакты.
-
-            '''
-        ),
-        reply_markup=start_keyboard
-    )
+#             '''
+#         ),
+#         reply_markup=start_keyboard
+#     )
 
 
 @bot.callback_query_handler(func=lambda call: call.data == 'register')
