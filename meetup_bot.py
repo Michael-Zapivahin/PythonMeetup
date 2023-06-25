@@ -49,11 +49,10 @@ class AdminCallBackData(object):
 
 @bot.message_handler(commands=['help', 'start'])
 def send_welcome(message):
-
     start_keyboard = InlineKeyboardMarkup(
         keyboard=[
             [InlineKeyboardButton('Присоединиться', callback_data='guest_menu')],
-            [InlineKeyboardButton('Я - администратор', callback_data='admin')]
+            [InlineKeyboardButton('Я - администратор', callback_data='admin')],
         ]
     )
 
@@ -61,7 +60,7 @@ def send_welcome(message):
 
     if active_event:
         db.add_guest_to_event(message.chat.id, active_event)
-        text=dedent(
+        text = dedent(
             f'''
             Привествую тебя в Python Meetup!
 
@@ -76,7 +75,7 @@ def send_welcome(message):
             '''
         )
     else:
-        text='На сегодня активных мероприятий нет'
+        text = 'На сегодня активных мероприятий нет'
 
     bot.send_message(
         chat_id=message.chat.id,
@@ -102,10 +101,10 @@ def admin_root(call):
 
         event_keyboard.add(InlineKeyboardButton('Создать новое мероприятие', callback_data='edit_event_new'))
 
-        text=dedent(
+        text = dedent(
             f'''
             Выберите мероприятие или создайте новое.
-            
+
             '✅ - активное мероприятие'
             '''
         )
@@ -578,39 +577,6 @@ def admin_delete_speech(call):
     admin_edit_event_schedules(AdminCallBackData(call, f'show_schedule_{speech.event.id}'))
 
 
-# @bot.message_handler(commands=['help_guest', 'guest_start'])
-# def send_welcome(message):
-#     guest = db.get_guest(message.chat.id)
-#     keyboard = []
-#     if guest:
-#         keyboard.append([InlineKeyboardButton('Переход в меню', callback_data='guest_menu')])
-#     else:
-#         keyboard.append([InlineKeyboardButton('Зарегистрироваться', callback_data='register')])
-#         keyboard.append([InlineKeyboardButton('Переход в меню  без регистрации', callback_data='guest_menu')])
-
-#     start_keyboard = InlineKeyboardMarkup(keyboard=keyboard)
-
-#     active_event_name = 'Чат-боты: ожидание и реальность'  # TODO: запрос из БД
-#     bot.send_message(
-#         chat_id=message.chat.id,
-#         text=dedent(
-#             f'''
-#             Привествую тебя в Python Meetup!
-
-#             Тема мероприятия:
-#             {active_event_name}
-
-#             * Будь в курсе событий текущего мероприятия.
-#             * Следи за выступлениями спикеров.
-#             * Задавай вопросы прямо в чат-боте.
-#             * Найди новые контакты.
-
-#             '''
-#         ),
-#         reply_markup=start_keyboard
-#     )
-
-
 @bot.callback_query_handler(func=lambda call: call.data == 'register')
 def guest_registration(call):
     guest_data = {}
@@ -718,12 +684,13 @@ def guest_menu(call):
     telegram_id = call.from_user.id
     keyboard = get_keyboard(
         [
+            ('О нас', 'bot_about'),
             ('1. Заполнить анкету', 'register'),
             ('2. Расписание выступления спикеров', 'schedule'),
             ('3. Получить информацию о следующих мероприятиях.', 'next_event'),
-            ('4. Донат', 'donat'),
-            ('5. Задать вопрос выступающему спикеру', 'question'),
-            ('6. Найти новые деловые контакты', 'find_contacts'),
+            ('4. Задать вопрос выступающему спикеру', 'question'),
+            ('5. Найти новые деловые контакты', 'find_contacts'),
+            ('6. Донат', 'make_donate'),
 
         ]
     )
@@ -732,7 +699,7 @@ def guest_menu(call):
         text=dedent(
             f'''
             Главное меню.
-            
+
             Можете заполить анкету, чтобы найти единомышленников
             '''),
         reply_markup=keyboard
@@ -741,7 +708,7 @@ def guest_menu(call):
 
 @bot.callback_query_handler(func=lambda call: call.data.startswith('event'))
 def guest_menu(call):
-    event = get_active_event()
+    event = db.get_active_event()
     telegram_id = call.from_user.id
     keyboard = get_keyboard(
         [
@@ -765,7 +732,7 @@ def guest_menu(call):
 
 @bot.callback_query_handler(func=lambda call: call.data.startswith('schedule'))
 def guest_menu(call):
-    event = get_active_event()
+    event = db.get_active_event()
     schedules_info = ''
     if event:
         for schedule in event.schedules.all():
@@ -861,7 +828,6 @@ def make_question(message):
     schedule = db.get_active_schedule()
 
     db.create_question(question, schedule, guest)
-    # bot.set_state(chat_id, state='guest_menu')
     keyboard = get_keyboard(
         [
             ('Назад', 'guest_menu'),
@@ -917,7 +883,7 @@ def donat_payment(message):
     bot.send_invoice(
         chat_id,
         'Пожертвование',
-        'Пожертвование',
+        f'{db.get_active_event()}',
         'HAPPY FRIDAYS COUPON',
         PAYMENTS_TOKEN,
         'rub',
@@ -943,7 +909,7 @@ def checkout(pre_checkout_query):
 
 @bot.message_handler(content_types=['successful_payment'])
 def got_payment(message):
-    save_payment(payment_data['amount'], db.get_active_schedule(), db.get_guest(message.chat.id))
+    db.save_payment(payment_data['amount'], db.get_active_event(), db.get_guest(message.chat.id))
     bot.send_message(message.chat.id,
                      'Срасибо за платеж! Мы будем рады видеть вас на наших мероприятих! '.format(
                          message.successful_payment.total_amount / 100, message.successful_payment.currency),
@@ -952,22 +918,28 @@ def got_payment(message):
 
 # end payment block
 
+@bot.callback_query_handler(func=lambda call: call.data.startswith('bot_about'))
+def guest_menu(call):
+    telegram_id = call.from_user.id
+    keyboard = get_keyboard(
+        [
+            ('Назад', 'guest_menu'),
+        ]
+    )
+    with open('about.txt', 'r') as file:
+        text_about = file.read()
+    bot.send_message(
+        chat_id=telegram_id,
+        text=dedent(text_about),
+        reply_markup=keyboard
+    )
+
+
 def get_keyboard(keys):
     buttons = []
     for key in keys:
         buttons.append([InlineKeyboardButton(key[0], callback_data=key[1])])
     return InlineKeyboardMarkup(keyboard=buttons)
-
-
-def save_payment(amount, schedule, guest):
-    Donation.object.create(amount=amount, schedule=schedule, guest=guest)
-
-
-def get_active_event():
-    try:
-        return get_object_or_404(Event, active=True)
-    except Http404:
-        return None
 
 
 bot.add_custom_filter(custom_filters.StateFilter(bot))

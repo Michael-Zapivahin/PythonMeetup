@@ -91,15 +91,20 @@ class Question(models.Model):
 
 class Donation(models.Model):
     amount = models.IntegerField('Сумма')
-    schedule = models.ForeignKey(Schedule, verbose_name='Расписание', on_delete=models.SET_NULL, null=True, related_name='donations')
     guest = models.ForeignKey(Guest, verbose_name='Донатор', on_delete=models.SET_NULL, null=True, related_name='donations')
+    event = models.ForeignKey(
+        Event, verbose_name='Событие',
+        on_delete=models.SET_NULL,
+        null=True,
+        related_name='donations'
+    )
 
     class Meta:
         verbose_name = 'донат'
         verbose_name_plural = 'донаты'
 
     def __str__(self):
-        return self.guest
+        return f'{self.guest}: {self.amount}'
 
 
 
