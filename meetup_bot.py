@@ -251,6 +251,33 @@ def admin_keyboard(event):
     return keyboard
 
 
+@bot.callback_query_handler(func=lambda call: call.data.startswith('donates_event'))
+def admin_notify_speakers(call):
+    chat_id = call.from_user.id
+    *_, event_id = call.data.split('_')
+    donates = db.report_donations(event_id)
+    
+    keyboard = get_keyboard(
+        [
+            ('Назад', f'event_{event_id}'),
+        ]
+    )
+    bot.send_message(
+        chat_id=chat_id,
+        text=dedent(
+            f'''
+            Отчет о донатах.
+            
+            Общее количесвто донатов: {donates["count"]}
+            ну сумму {donates["summa"]} рублей
+            
+            '''
+            ),
+        reply_markup=keyboard
+    )
+    bot.delete_message(call.from_user.id, call.message.id)
+
+
 @bot.callback_query_handler(func=lambda call: call.data.startswith('notify_speakers'))
 def admin_notify_speakers(call):
     *_, event_id = call.data.split('_')
@@ -1000,10 +1027,18 @@ def checkout(pre_checkout_query):
 @bot.message_handler(content_types=['successful_payment'])
 def got_payment(message):
     db.save_payment(payment_data['amount'], db.get_active_event(), db.get_guest(message.chat.id))
-    bot.send_message(message.chat.id,
-                     'Срасибо за платеж! Мы будем рады видеть вас на наших мероприятих! '.format(
+    keyboard = get_keyboard(
+        [
+            ('Назад', 'guest_menu'),
+        ]
+    )    
+    bot.send_message(
+        message.chat.id,
+        text='Спасибо за платеж!\nМы будем рады видеть вас на наших мероприятих! '.format(
                          message.successful_payment.total_amount / 100, message.successful_payment.currency),
-                     parse_mode='Markdown')
+        parse_mode='Markdown',
+        reply_markup=keyboard
+    )
 
 
 # end payment block

@@ -9,6 +9,7 @@ from typing import NamedTuple
 
 from django.shortcuts import get_object_or_404
 from django.http import Http404
+from django.db.models import Count, Sum
 
 from datetime import datetime
 
@@ -172,3 +173,9 @@ def create_question(question, schedule, guest):
 
 def save_payment(amount, event, guest):
     Donation.objects.create(amount=amount, event=event, guest=guest)
+    
+
+def report_donations(event_id) -> dict():
+
+    return Event.objects.filter(id=event_id).aggregate(count=Count('donations'), summa=Sum('donations__amount'))
+    
