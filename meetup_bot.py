@@ -281,7 +281,39 @@ def admin_notify_speakers(call):
             text=text,
             reply_markup=keyboard
         )
-    bot.answer_callback_query('Уведомления отправлены!')
+    bot.answer_callback_query(call.id, 'Уведомления отправлены!')
+
+
+@bot.callback_query_handler(func=lambda call: call.data.startswith('notify_guests'))
+def admin_notify_guests(call):
+    *_, event_id = call.data.split('_')
+    event = db.get_event(event_id)
+    ids = db.get_event_guests_ids(event_id)
+    
+    text = dedent(
+        f'''
+        Вас привествует PythonMeetup!
+        
+        Дата: {event.date}
+        Тема мероприятия:
+        {event.topic}
+        
+        Расписание мероприятия было изменено.
+
+        '''
+    )
+    keyboard = get_keyboard(
+        [
+            ('Перейти к расписанию', 'schedule')
+        ]
+    )
+    for id in ids:
+        bot.send_message(
+            chat_id=id,
+            text=text,
+            reply_markup=keyboard
+        )
+    bot.answer_callback_query(call.id, 'Уведомления об изменении расписания отправлены!')
 
 
 @bot.callback_query_handler(func=lambda call: call.data.startswith('event_'))

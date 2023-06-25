@@ -59,13 +59,17 @@ def update_event(event_id, topic, date) -> None:
 
 
 def get_event_schedules(event_id) -> list[Schedule]:
-    return Schedule.objects.filter(event_id=event_id).order_by('start_at')
+    return Schedule.objects.filter(event__id=event_id).order_by('start_at')
 
 
-def get_event_speakers_ids(event_id) -> list[Event]:
-    speakers_ids = Schedule.objects.filter(event_id=event_id).values_list('speaker__telegram_id')
+def get_event_speakers_ids(event_id) -> list[int]:
+    speakers_ids = Schedule.objects.filter(id=event_id).values_list('speaker__telegram_id')
     return set([id[0] for id in speakers_ids if id[0]])
 
+
+def get_event_guests_ids(event_id) -> list[int]:
+    guests_ids = EventGuests.objects.filter(event__id=event_id).values_list('guest__telegram_id')
+    return set([id[0] for id in guests_ids if id[0]])
 
 
 def get_active_event_schedule(event_id) -> Schedule:
