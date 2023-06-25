@@ -12,22 +12,23 @@ from .models import (
 
 
 @admin.register(EventGuests)
-class ClientAdmin(admin.ModelAdmin):
-    pass
+class EventGuestsAdmin(admin.ModelAdmin):
+    list_display = ('event', 'guest')
+    list_filter = ('event', 'guest')
 
 
 @admin.register(Friend)
-class ClientAdmin(admin.ModelAdmin):
+class FriendAdmin(admin.ModelAdmin):
     pass
 
 
 @admin.register(Guest)
-class ClientAdmin(admin.ModelAdmin):
+class GuestAdmin(admin.ModelAdmin):
     pass
 
 
 @admin.register(Schedule)
-class ClientAdmin(admin.ModelAdmin):
+class ScheduleAdmin(admin.ModelAdmin):
     pass
 
 
@@ -37,7 +38,7 @@ class ScheduleInline(admin.TabularInline):
 
 
 @admin.register(Event)
-class ClientAdmin(admin.ModelAdmin):
+class EventAdmin(admin.ModelAdmin):
     model = Event
     inlines = [
         ScheduleInline,
@@ -45,10 +46,10 @@ class ClientAdmin(admin.ModelAdmin):
 
 
 @admin.register(Question)
-class ClientAdmin(admin.ModelAdmin):
+class QuestionAdmin(admin.ModelAdmin):
     pass
 
 
 @admin.register(Donation)
-class ClientAdmin(admin.ModelAdmin):
+class DonationAdmin(admin.ModelAdmin):
     pass

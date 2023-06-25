@@ -49,30 +49,24 @@ class AdminCallBackData(object):
 
 @bot.message_handler(commands=['help', 'start'])
 def send_welcome(message):
-    # guest = db.get_guest(message.chat.id)
-    # start_keyboard = []
-    # if guest:
-    #     start_keyboard.append([InlineKeyboardButton('Переход в меню', callback_data='guest_menu')])
-    # else:
-    #     start_keyboard.append([InlineKeyboardButton('Зарегистрироваться', callback_data='register')])
-    #     start_keyboard.append([InlineKeyboardButton('Переход в меню  без регистрации', callback_data='guest_menu')])
 
     start_keyboard = InlineKeyboardMarkup(
         keyboard=[
-            [InlineKeyboardButton('Зарегистрироваться', callback_data='register')],
+            [InlineKeyboardButton('Присоединиться', callback_data='guest_menu')],
             [InlineKeyboardButton('Я - администратор', callback_data='admin')]
         ]
     )
 
-    active_event_name = 'Чат-боты: ожидание и реальность'  # запрос из БД
-    bot.send_message(
-        chat_id=message.chat.id,
+    active_event = db.get_active_event()
+
+    if active_event:
+        db.add_guest_to_event(message.chat.id, active_event)
         text=dedent(
             f'''
             Привествую тебя в Python Meetup!
 
-            Тема мероприятия:
-            {active_event_name}
+            Сегодня: {active_event.date}
+            Тема мероприятия: {active_event.topic}
 
             * Будь в курсе событий текущего мероприятия.
             * Следи за выступлениями спикеров.
@@ -80,7 +74,13 @@ def send_welcome(message):
             * Найди новые контакты.
 
             '''
-        ),
+        )
+    else:
+        text='На сегодня активных мероприятий нет'
+
+    bot.send_message(
+        chat_id=message.chat.id,
+        text=text,
         reply_markup=start_keyboard
     )
 
@@ -718,7 +718,7 @@ def guest_menu(call):
     telegram_id = call.from_user.id
     keyboard = get_keyboard(
         [
-            ('1. Узнать информацию о мероприятии', 'event'),
+            ('1. Заполнить анкету', 'register'),
             ('2. Расписание выступления спикеров', 'schedule'),
             ('3. Получить информацию о следующих мероприятиях.', 'next_event'),
             ('4. Донат', 'donat'),
@@ -731,7 +731,9 @@ def guest_menu(call):
         chat_id=telegram_id,
         text=dedent(
             f'''
-            Главное меню
+            Главное меню.
+            
+            Можете заполить анкету, чтобы найти единомышленников
             '''),
         reply_markup=keyboard
     )

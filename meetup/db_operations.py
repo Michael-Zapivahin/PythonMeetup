@@ -4,11 +4,13 @@ import django
 os.environ['DJANGO_SETTINGS_MODULE'] = 'pythonmeetup.settings'
 django.setup()
 
-from .models import Event, Schedule, Guest, Question
+from .models import Event, Schedule, Guest, Question, EventGuests
 from typing import NamedTuple
 
 from django.shortcuts import get_object_or_404
 from django.http import Http404
+
+from datetime import datetime
 
 class Speech(NamedTuple):
     time: str
@@ -104,14 +106,21 @@ def update_speech_speaker(speech_id: int, update_speech_data: dict) -> Speech:
     return Schedule.objects.get(id=speech_id)
     
 
+def add_guest_to_event(telegram_id, event):
+    guest, _ = Guest.objects.update_or_create(telegram_id=telegram_id)
+    EventGuests.objects.update_or_create(guest=guest, event=event)
+
+
 def create_guest(name, phone, kind, projects, public, telegram_id) -> None:
-    Guest.objects.create(
-        name=name,
-        phone=phone,
-        kind_activity=kind,
-        projects=projects,
-        open_for_contact=public,
-        telegram_id=telegram_id
+    Guest.objects.update_or_create(
+        telegram_id=telegram_id,
+        defaults={
+            'name': name,
+            'phone': phone,
+            'kind_activity': kind,
+            'projects': projects,
+            'open_for_contact': public,
+        }
     )
 
 def set_active_event(event_id) -> Event:
@@ -123,6 +132,9 @@ def set_active_event(event_id) -> Event:
     
     return current_event
 
+
+def get_active_event() -> Event:
+    return Event.objects.filter(date__gte=datetime.today(), active=True).first()
 
 
 def get_guest(telegram_id) -> Guest:
