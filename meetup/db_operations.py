@@ -64,7 +64,7 @@ def get_event_schedules(event_id) -> list[Schedule]:
 
 
 def get_event_speakers_ids(event_id) -> list[int]:
-    speakers_ids = Schedule.objects.filter(event_id=event_id).values_list('speaker__telegram_id')
+    speakers_ids = Schedule.objects.filter(event__id=event_id).values_list('speaker__telegram_id')
     return set([id[0] for id in speakers_ids if id[0]])
 
 
