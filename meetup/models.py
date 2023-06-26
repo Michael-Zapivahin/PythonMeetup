@@ -86,7 +86,7 @@ class Question(models.Model):
         verbose_name_plural = 'вопросы'
 
     def __str__(self):
-        return self.question[100]
+        return self.question[:100]
 
 
 class Donation(models.Model):

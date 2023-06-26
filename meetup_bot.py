@@ -799,25 +799,58 @@ def guest_registration(call):
 @bot.callback_query_handler(func=lambda call: call.data.startswith('guest_menu'))
 def guest_menu(call):
     telegram_id = call.from_user.id
-    keyboard = get_keyboard(
-        [
-            ('О нас', 'bot_about'),
-            ('1. Заполнить анкету', 'register'),
-            ('2. Расписание выступления спикеров', 'schedule'),
-            ('3. Получить информацию о следующих мероприятиях.', 'next_event'),
-            ('4. Задать вопрос выступающему спикеру', 'question'),
-            ('5. Найти новые деловые контакты', 'find_contacts'),
-            ('6. Донат', 'make_donate'),
+    event = db.get_active_event()
+    speakers_ids = db.get_event_speakers_ids(event.id)
 
-        ]
-    )
+    guest_menu = [
+        ('Расписание выступления спикеров', 'schedule'),
+        ('Задать вопрос выступающему спикеру', 'question'),
+        ('Информация о следующих мероприятиях.', 'next_event'),
+        ('Заполнить анкету', 'register'),
+        ('Найти новые деловые контакты', 'find_contacts'),
+        ('"Поблагодарить" организаторов', 'make_donate'),
+        ('Информация о боте', 'bot_about'),
+    ]
+    
+    if telegram_id in speakers_ids:
+        guest_menu.insert(0, ('Посмотреть заданные мне вопросы', 'view_questions'))
+    
+    keyboard = get_keyboard(guest_menu)
+    
     bot.send_message(
         chat_id=telegram_id,
         text=dedent(
             f'''
             Главное меню.
 
-            Можете заполить анкету, чтобы найти единомышленников
+            Можете заполнить анкету, чтобы найти единомышленников или новые контакты.
+            '''),
+        reply_markup=keyboard
+    )
+
+
+@bot.callback_query_handler(func=lambda call: call.data.startswith('view_questions'))
+def speaker_view_questions(call):
+    speaker_id = call.from_user.id
+
+    speaker_questions = db.get_speaker_questions(
+        event=db.get_active_event(),
+        speaker=db.get_guest(speaker_id)
+    )   
+    
+    keyboard = get_keyboard(
+        [
+            ('Назад', 'guest_menu'),
+        ]
+    )
+
+    bot.send_message(
+        chat_id=speaker_id,
+        text=dedent(
+            f'''
+            Вопросы, поступившие по ходу Вашего выступления:
+            
+            {speaker_questions}
             '''),
         reply_markup=keyboard
     )

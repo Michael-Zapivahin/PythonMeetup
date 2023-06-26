@@ -9,7 +9,7 @@ from typing import NamedTuple
 
 from django.shortcuts import get_object_or_404
 from django.http import Http404
-from django.db.models import Count, Sum
+from django.db.models import Count, Sum, F
 
 from datetime import datetime
 
@@ -64,7 +64,7 @@ def get_event_schedules(event_id) -> list[Schedule]:
 
 
 def get_event_speakers_ids(event_id) -> list[int]:
-    speakers_ids = Schedule.objects.filter(id=event_id).values_list('speaker__telegram_id')
+    speakers_ids = Schedule.objects.filter(event_id=event_id).values_list('speaker__telegram_id')
     return set([id[0] for id in speakers_ids if id[0]])
 
 
@@ -170,6 +170,20 @@ def get_active_schedule():
 def create_question(question, schedule, guest):
     Question.objects.create(question=question, schedule=schedule, guest=guest)
 
+
+def get_speaker_questions(event, speaker):
+    speeches = Schedule.objects.filter(event=event, speaker=speaker)
+    
+    formatted_questions = '\n'
+    
+    for speech in speeches:
+        formatted_questions += f'Тема: {speech.topic} \n'
+        for question in speech.questions.all():
+            formatted_questions += f'* {question.question} \n'
+        formatted_questions += '\n'
+        
+    return formatted_questions
+            
 
 def save_payment(amount, event, guest):
     Donation.objects.create(amount=amount, event=event, guest=guest)
